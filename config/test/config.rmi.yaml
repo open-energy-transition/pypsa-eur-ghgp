@@ -1,0 +1,123 @@
+%YAML 1.1
+---
+# yaml-language-server: $schema=./schema.default.json
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#version
+version: v2026.02.0
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#tutorial
+tutorial: false
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#logging
+logging:
+  level: INFO
+  format: "%(levelname)s:%(name)s:%(message)s"
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#remote
+remote:
+  ssh: ""
+  path: ""
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#run
+run:
+  prefix: ""
+  name: test-2024-3H-1M-DE
+  scenarios:
+    enable: false
+    file: config/scenarios.yaml
+  disable_progressbar: false
+  shared_resources:
+    policy: false
+    exclude: []
+  use_shadow_directory: false
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#foresight
+foresight: myopic
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#scenario
+scenario:
+  clusters:
+  - 2
+  opts:
+  - ""
+  sector_opts:
+  - ""
+  planning_horizons:
+  - 2025
+
+countries:
+- DE
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#snapshots
+snapshots:
+  start: "2013-03-01"
+  end: "2013-04-01"
+  inclusive: left
+
+load:
+  fixed_year: false
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#electricity
+electricity:
+  extendable_carriers:
+    Generator: []
+    StorageUnit: []
+    Store: []
+    Link: []
+  powerplants_filter: "(DateOut > 2025 or DateOut != DateOut) and (DateIn < 2026 or DateIn != DateIn)"
+  transmission_limit: v1.0
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#sector
+sector:
+  transport: false
+  heating: false
+  biomass: false
+  industry: false
+  shipping: false
+  aviation: false
+  agriculture: false
+  dac: false
+  co2_network: false
+  co2_spatial: false
+  regional_co2_sequestration_potential:
+    enable: false
+  H2_network: false
+  hydrogen_fuel_cell: false
+  hydrogen_turbine: false
+  SMR: false
+  SMR_cc: false
+  gas_network: false
+  gas_distribution_grid: false
+  electricity_distribution_grid: false
+  ammonia: false
+  methanol:
+    biomass_to_methanol: false
+    methanol_to_power:
+      ocgt: false
+  hydrogen_underground_storage: false
+  methanation: false
+  regional_oil_demand: false
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#clustering
+clustering:
+  temporal:
+    resolution_sector: 3H
+
+# blocca capacity expansion di componenti H2 (aggiunti incondizionatamente da prepare_sector_network)
+adjustments:
+  sector:
+    absolute:
+      Link:
+        H2 Electrolysis:
+          p_nom_max: 0.0
+      Store:
+        H2 Store:
+          e_nom_max: 0.0
+    
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#solving
+solving:
+  options:
+    load_shedding: true
+#   solver:
+#     name: highs
+#     options: highs-default

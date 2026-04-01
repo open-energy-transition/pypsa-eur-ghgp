@@ -223,7 +223,12 @@ if __name__ == "__main__":
     if "snakemake" not in globals():
         from scripts._helpers import mock_snakemake
 
-        snakemake = mock_snakemake("build_electricity_demand")
+        snakemake = mock_snakemake(
+            "build_electricity_demand",
+            run="test-2024-3H-1M-DE",
+            configfiles=["test/config.rmi.yaml"],
+            planning_horizon=2025,
+            )
 
     configure_logging(snakemake)
     set_scenario_config(snakemake)
