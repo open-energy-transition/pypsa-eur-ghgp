@@ -226,7 +226,7 @@ if __name__ == "__main__":
         snakemake = mock_snakemake(
             "build_electricity_demand",
             run="test-2024-3H-1M-DE",
-            configfiles=["test/config.rmi.yaml"],
+            configfiles=["config/test/config.rmi.yaml"],
             planning_horizon=2025,
             )
 
@@ -326,16 +326,14 @@ if __name__ == "__main__":
     )
 
     fixed_year = snakemake.params["load"].get("fixed_year", False)
-    years = (
-        slice(str(fixed_year), str(fixed_year))
-        if fixed_year
-        else slice(snapshots[0], snapshots[-1])
-    )
-
-    load = load.loc[years].reindex(index=snapshots)
-
-    # need to reindex load time series to target year
     if fixed_year:
-        load.index = load.index.map(lambda t: t.replace(year=snapshots.year[0]))
+        # Map snapshots to fixed_year to select only the matching time slice.
+        # This avoids issues when snapshots cover less than a full year (e.g.
+        # one month) and when fixed_year is a leap year (e.g. 2024-02-29 would be skipped).
+        fixed_year_index = snapshots.map(lambda t: t.replace(year=int(fixed_year)))
+        load = load.loc[fixed_year_index]
+        load.index = snapshots
+    else:
+        load = load.loc[slice(snapshots[0], snapshots[-1])].reindex(index=snapshots)
 
     load.to_csv(snakemake.output[0])

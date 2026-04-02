@@ -54,8 +54,9 @@ snapshots:
   end: "2013-04-01"
   inclusive: left
 
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#load
 load:
-  fixed_year: false
+  fixed_year: 2024
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#electricity
 electricity:
@@ -70,8 +71,8 @@ electricity:
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#sector
 sector:
   transport: false
-  heating: false
-  biomass: false
+  heating: false # temporary
+  biomass: false # temporary
   industry: false
   shipping: false
   aviation: false
@@ -103,7 +104,7 @@ clustering:
   temporal:
     resolution_sector: 3H
 
-# blocca capacity expansion di componenti H2 (aggiunti incondizionatamente da prepare_sector_network)
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#adjustments
 adjustments:
   sector:
     absolute:
@@ -118,6 +119,3 @@ adjustments:
 solving:
   options:
     load_shedding: true
-#   solver:
-#     name: highs
-#     options: highs-default
