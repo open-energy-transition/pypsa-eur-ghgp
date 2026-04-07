@@ -43,7 +43,7 @@ scenario:
   sector_opts:
   - ""
   planning_horizons:
-  - 2025
+  - 2024
 
 countries:
 - DE
@@ -65,8 +65,50 @@ electricity:
     StorageUnit: []
     Store: []
     Link: []
-  powerplants_filter: "(DateOut > 2025 or DateOut != DateOut) and (DateIn < 2026 or DateIn != DateIn)"
+  powerplants_filter: "(DateOut > 2024 or DateOut != DateOut) and (DateIn < 2025 or DateIn != DateIn)"
   transmission_limit: v1.0
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#lines
+lines:
+  under_construction: zero
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#transmission_projects
+transmission_projects:
+  enable: false
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#existing_capacities
+existing_capacities:
+  grouping_years_power:
+  - 1900
+  - 1950
+  - 1955
+  - 1960
+  - 1965
+  - 1970
+  - 1975
+  - 1980
+  - 1985
+  - 1990
+  - 1995
+  - 2000
+  - 2005
+  - 2010
+  - 2015
+  - 2020
+  - 2024
+  - 2025
+  - 2030
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#biomass
+biomass:
+  share_unsustainable_use_retained:
+    2024: 1
+  share_sustainable_potential_available:
+    2024: 0
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#costs
+costs:
+  year: 2024
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#sector
 sector:
