@@ -697,35 +697,12 @@ The upstream `technology-data` v0.14.0 repository provides cost files only for m
 
 **Fuel price backcasting strategy**: The `marginal_cost` of conventional generators (gas OCGT/CCGT, coal, lignite, oil, biomass) depends critically on `fuel` prices, which vary significantly across years 2020–2025 (e.g., the European gas price spike in 2021–2022). Since `dynamic_fuel_price: false` is used, a single annual-average fuel price for year Y must be set.
 
-The recommended approach is to override the `fuel` parameter in `data/custom_costs.csv` for each backcasting year. This is a **raw attribute** override (Stage 1 in `process_cost_data.py`), so the correct `marginal_cost = VOM + fuel/efficiency` is automatically recomputed:
-
-```csv
-planning_horizon,technology,parameter,value,unit,source,further description
-2020,gas,fuel,5.0,EUR/MWh_th,World Bank CMO annual average (EUR2020),
-2021,gas,fuel,13.5,EUR/MWh_th,World Bank CMO annual average (EUR2020),
-2022,gas,fuel,34.0,EUR/MWh_th,World Bank CMO annual average (EUR2020),
-2023,gas,fuel,15.0,EUR/MWh_th,World Bank CMO annual average (EUR2020),
-2024,gas,fuel,9.5,EUR/MWh_th,World Bank CMO annual average (EUR2020),
-2025,gas,fuel,9.0,EUR/MWh_th,World Bank CMO annual average (EUR2020),
-2020,coal,fuel,2.5,EUR/MWh_th,World Bank CMO annual average (EUR2020),
-2021,coal,fuel,3.8,EUR/MWh_th,World Bank CMO annual average (EUR2020),
-2022,coal,fuel,8.5,EUR/MWh_th,World Bank CMO annual average (EUR2020),
-2023,coal,fuel,4.5,EUR/MWh_th,World Bank CMO annual average (EUR2020),
-2024,coal,fuel,3.5,EUR/MWh_th,World Bank CMO annual average (EUR2020),
-2025,coal,fuel,3.0,EUR/MWh_th,World Bank CMO annual average (EUR2020),
-2020,oil,fuel,26.0,EUR/MWh,World Bank CMO annual average (EUR2020),
-2021,oil,fuel,32.0,EUR/MWh,World Bank CMO annual average (EUR2020),
-2022,oil,fuel,50.0,EUR/MWh,World Bank CMO annual average (EUR2020),
-2023,oil,fuel,42.0,EUR/MWh,World Bank CMO annual average (EUR2020),
-2024,oil,fuel,38.0,EUR/MWh,World Bank CMO annual average (EUR2020),
-2025,oil,fuel,35.0,EUR/MWh,World Bank CMO annual average (EUR2020),
-```
+The recommended approach is to override the `fuel` parameter in `data/custom_costs.csv` for each backcasting year with one row per `technology` per year. This is a **raw attribute** override (Stage 1 in `process_cost_data.py`), so the correct `marginal_cost = VOM + fuel/efficiency` is automatically recomputed. The actual values to use and instructions for deriving them from the World Bank CMO data are documented in Section 8.
 
 **Key rules**:
 1. For `technology=gas`: OCGT and CCGT inherit the price automatically via `costs.at["OCGT", "fuel"] = costs.at["gas", "fuel"]` (lines 178-179 of `process_cost_data.py`). Do not add explicit OCGT/CCGT rows — they would be overwritten. For `technology=coal` and `technology=oil`: there is no auto-propagation, so rows must be added directly.
 2. `lignite` is domestic (not in World Bank CMO) — use a fixed assumption (~1–3 EUR/MWh_th) with `planning_horizon=all`.
-3. Values above are **indicative** — verify against World Bank CMO data (`build_fossil_fuel_prices` rule output: `resources/monthly_fuel_price.csv`) or Eurostat energy statistics.
-4. The `planning_horizon` column must be a **string** matching `str(snakemake.wildcards.planning_horizons)`. The CSV is read with `dtype={"planning_horizon": "str"}`, so integer values like `2024` in the CSV are correctly matched.
+3. The `planning_horizon` column must be a **string** matching `str(snakemake.wildcards.planning_horizons)`. The CSV is read with `dtype={"planning_horizon": "str"}`, so integer values like `2024` in the CSV are correctly matched.
 
 ### 6.4 Rules Requiring Changes
 
@@ -792,16 +769,24 @@ The following settings from `config.default.yaml` do not need to be overridden a
 
 ---
 
-## 8. Backcasting-Specific Snakemake Modifications
+## 8. Backcasting-Specific Modifications
+
+This section documents all modifications made to the PyPSA-Eur codebase and data files to support backcasting. Changes fall into two categories: **Snakemake workflow modifications** (rules and scripts) and **data modifications** (input data files).
 
 ### 8.1 Summary of Changes
 
-Two files were modified to support the cost file copy for non-milestone backcasting years:
+**Snakemake workflow files:**
 
 | File | Change |
 |---|---|
 | `rules/retrieve.smk` | Added `copy_cost_data_for_backcasting` rule (conditionally defined) |
 | `rules/build_electricity.smk` | Changed `process_cost_data` input from `rules.retrieve_cost_data.output["costs"]` to a plain path string |
+
+**Data files:**
+
+| File | Change |
+|---|---|
+| `data/custom_costs.csv` | Added `fuel` parameter overrides for `gas`, `coal`, and `oil` for each backcasting year 2020–2025 |
 
 ### 8.2 The `copy_cost_data_for_backcasting` Rule (`retrieve.smk`)
 
@@ -865,3 +850,47 @@ process_cost_data(planning_horizons=2024)
 ```
 
 **Key insight**: when Snakemake needs `costs_2025.csv` to satisfy `copy_cost_data_for_backcasting`, it instantiates `retrieve_cost_data` with `planning_horizons=2025` independently — this value is **not** taken from `scenario.planning_horizons` but is deduced by pattern-matching the required filename against the rule's output pattern `costs_{planning_horizons}.csv`. Snakemake prefers concrete outputs over wildcard outputs, which is why `copy_cost_data_for_backcasting` wins over `retrieve_cost_data(planning_horizons=2024)` in step 1.
+
+---
+
+### 8.5 Fuel Price Data Modifications (`data/custom_costs.csv`)
+
+**Data source**: World Bank CMO Pink Sheet (`CMO-Historical-Data-Monthly.xlsx`), retrieved via the `retrieve_worldbank_commodity_prices` rule and processed by the `build_fossil_fuel_prices` rule. The three commodity series used are:
+
+| `technology` in `custom_costs.csv` | World Bank CMO column | Unit (original) |
+|---|---|---|
+| `gas` | `Natural gas, Europe` | USD/MMBtu |
+| `coal` | `Coal, South African **` | USD/metric ton |
+| `oil` | `Crude oil, Brent` | USD/bbl |
+
+**Processing pipeline** (`scripts/build_monthly_prices.py`):
+1. Nominal USD prices are deflated to **real EUR2020** using the IMF GDP deflator (via `pydeflate`)
+2. Unit conversion to EUR/MWh: gas × 3.41214 MMBtu/MWh, coal × 0.1433 t/MWh, oil × 0.5883 bbl/MWh
+3. A 6-month centered rolling mean is applied (`fuel_price_rolling_window: 6`)
+4. Output: `resources/monthly_fuel_price.csv`
+
+**Derivation of annual values**: annual-average prices in `custom_costs.csv` were computed as `monthly_fuel_price.csv.groupby(year).mean()` for years 2020–2025. The 6-month rolling mean does not affect annual averages for complete calendar years (the rolling mean preserves the sum over a full year).
+
+The following rows were added to `data/custom_costs.csv`:
+
+```csv
+planning_horizon,technology,parameter,value,unit,source,further description
+2020,gas,fuel,10.00,EUR/MWh_th,World Bank CMO Pink Sheet (Natural gas Europe) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
+2021,gas,fuel,41.40,EUR/MWh_th,World Bank CMO Pink Sheet (Natural gas Europe) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
+2022,gas,fuel,117.03,EUR/MWh_th,World Bank CMO Pink Sheet (Natural gas Europe) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
+2023,gas,fuel,40.40,EUR/MWh_th,World Bank CMO Pink Sheet (Natural gas Europe) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
+2024,gas,fuel,29.22,EUR/MWh_th,World Bank CMO Pink Sheet (Natural gas Europe) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
+2025,gas,fuel,29.87,EUR/MWh_th,World Bank CMO Pink Sheet (Natural gas Europe) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
+2020,coal,fuel,8.24,EUR/MWh_th,World Bank CMO Pink Sheet (Coal South African) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
+2021,coal,fuel,13.98,EUR/MWh_th,World Bank CMO Pink Sheet (Coal South African) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
+2022,coal,fuel,29.20,EUR/MWh_th,World Bank CMO Pink Sheet (Coal South African) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
+2023,coal,fuel,14.22,EUR/MWh_th,World Bank CMO Pink Sheet (Coal South African) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
+2024,coal,fuel,11.69,EUR/MWh_th,World Bank CMO Pink Sheet (Coal South African) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
+2025,coal,fuel,9.93,EUR/MWh_th,World Bank CMO Pink Sheet (Coal South African) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
+2020,oil,fuel,22.51,EUR/MWh,World Bank CMO Pink Sheet (Crude oil Brent) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
+2021,oil,fuel,33.67,EUR/MWh,World Bank CMO Pink Sheet (Crude oil Brent) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
+2022,oil,fuel,50.18,EUR/MWh,World Bank CMO Pink Sheet (Crude oil Brent) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
+2023,oil,fuel,38.96,EUR/MWh,World Bank CMO Pink Sheet (Crude oil Brent) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
+2024,oil,fuel,36.71,EUR/MWh,World Bank CMO Pink Sheet (Crude oil Brent) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
+2025,oil,fuel,29.57,EUR/MWh,World Bank CMO Pink Sheet (Crude oil Brent) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
+```
