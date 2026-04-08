@@ -54,6 +54,11 @@ snapshots:
   end: "2013-04-01"
   inclusive: left
 
+backcasting:
+  enable: true
+  year_back: 2024
+  year_costs: 2025
+
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#load
 load:
   fixed_year: 2024

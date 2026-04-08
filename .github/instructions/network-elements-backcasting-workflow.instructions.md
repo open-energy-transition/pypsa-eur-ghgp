@@ -789,3 +789,79 @@ The following settings from `config.default.yaml` do not need to be overridden a
 | `custom_costs.csv` `marginal_cost` param | `process_cost_data` | `process_cost_data.py` | Stage 2 | Prepared attr override: directly sets final `marginal_cost`, bypasses computation |
 | `biomass.share_unsustainable_use_retained` | `build_biomass_potentials` | `build_biomass_potentials.py` | 299 | `.get(investment_year)` — returns None for non-milestone years → must add explicit key Y in config |
 | `biomass.share_sustainable_potential_available` | `build_biomass_potentials` | `build_biomass_potentials.py` | 327 | `.get(investment_year)` — same unsafe lookup — must add explicit key Y in config |
+
+---
+
+## 8. Backcasting-Specific Snakemake Modifications
+
+### 8.1 Summary of Changes
+
+Two files were modified to support the cost file copy for non-milestone backcasting years:
+
+| File | Change |
+|---|---|
+| `rules/retrieve.smk` | Added `copy_cost_data_for_backcasting` rule (conditionally defined) |
+| `rules/build_electricity.smk` | Changed `process_cost_data` input from `rules.retrieve_cost_data.output["costs"]` to a plain path string |
+
+### 8.2 The `copy_cost_data_for_backcasting` Rule (`retrieve.smk`)
+
+```python
+if (
+    config.get("backcasting", {}).get("enable", False)
+    and config["backcasting"].get("year_back") != config["backcasting"].get("year_costs")
+):
+    _year_back = config["backcasting"]["year_back"]
+    _year_costs = config["backcasting"]["year_costs"]
+
+    rule copy_cost_data_for_backcasting:
+        message:
+            f"Copying cost data from {_year_costs} to {_year_back} for backcasting"
+        input:
+            costs=COSTS_DATASET["folder"] + f"/costs_{_year_costs}.csv",
+        output:
+            costs=COSTS_DATASET["folder"] + f"/costs_{_year_back}.csv",
+        run:
+            copy2(input["costs"], output["costs"])
+```
+
+The rule is only registered in the DAG when `backcasting.enable: true` and `year_back ≠ year_costs`. Both input and output are **concrete paths** (no wildcards), resolved at parse time from config values.
+
+### 8.3 The `process_cost_data` Input Change (`build_electricity.smk`)
+
+The original input used a direct rule reference:
+```python
+costs=rules.retrieve_cost_data.output["costs"],  # ORIGINAL — hardwires retrieve_cost_data
+```
+
+Changed to a plain path string:
+```python
+costs=COSTS_DATASET["folder"] + "/costs_{planning_horizons}.csv",  # MODIFIED
+```
+
+This is the critical change. With a direct rule reference, Snakemake is forced to use `retrieve_cost_data` as the producer — it would try to download `costs_2024.csv` from GitHub (which returns 404). With a plain path string, Snakemake applies its standard **rule selection algorithm** to find the best producer of that path.
+
+### 8.4 Why It Works Despite `planning_horizons: [2024]`
+
+`scenario.planning_horizons: [2024]` controls only which **final targets** Snakemake expands (i.e., which solved networks to build). It does not restrict the wildcard `{planning_horizons}` to the value `2024` in intermediate rules — that wildcard is only constrained by the global `wildcard_constraints: planning_horizons=r"[0-9]{4}"` (any 4-digit year, in `Snakefile` line 61).
+
+The full chain Snakemake schedules automatically:
+
+```
+process_cost_data(planning_horizons=2024)
+  needs: data/costs/.../costs_2024.csv
+    → two candidate rules:
+        (a) retrieve_cost_data(planning_horizons=2024)  ← wildcard output
+        (b) copy_cost_data_for_backcasting              ← concrete output ✓ (wins)
+  → copy_cost_data_for_backcasting
+      needs: data/costs/.../costs_2025.csv
+        → one candidate rule:
+            retrieve_cost_data(planning_horizons=2025)  ← Snakemake deduces 2025
+                                                          by matching pattern
+                                                          costs_{planning_horizons}.csv
+                                                          against the required path
+        → downloads costs_2025.csv from GitHub ✓ (exists in technology-data v0.14.0)
+      → copies costs_2025.csv → costs_2024.csv ✓
+  → process_cost_data runs with costs_2024.csv ✓
+```
+
+**Key insight**: when Snakemake needs `costs_2025.csv` to satisfy `copy_cost_data_for_backcasting`, it instantiates `retrieve_cost_data` with `planning_horizons=2025` independently — this value is **not** taken from `scenario.planning_horizons` but is deduced by pattern-matching the required filename against the rule's output pattern `costs_{planning_horizons}.csv`. Snakemake prefers concrete outputs over wildcard outputs, which is why `copy_cost_data_for_backcasting` wins over `retrieve_cost_data(planning_horizons=2024)` in step 1.
