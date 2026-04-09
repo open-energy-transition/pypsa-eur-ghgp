@@ -26,17 +26,27 @@ This document provides a rigorous, code-grounded reference for how the four main
 
 ### Current test configuration (`config/test/config.rmi.yaml`)
 
-| Parameter | Value |
-|---|---|
-| `foresight` | `myopic` |
-| `scenario.planning_horizons` | `[2025]` |
-| `load.fixed_year` | `2024` |
-| `electricity.transmission_limit` | `v1.0` |
-| `electricity.extendable_carriers` | all `[]` (no expansion) |
-| `electricity.powerplants_filter` | `"(DateOut > 2025 or DateOut != DateOut) and (DateIn < 2026 or DateIn != DateIn)"` |
-| `sector.electricity_distribution_grid` | `false` |
-| countries | `[DE]` |
-| snapshots | March 2013, 3H resolution |
+| Parameter | Value | Scope |
+|---|---|---|
+| `foresight` | `myopic` | constant |
+| `scenario.planning_horizons` | `[Y]` (e.g., `[2025]` for baseline) | per-scenario |
+| `load.fixed_year` | `Y` (per backcasting year) | per-scenario |
+| `costs.year` | `Y` (per backcasting year) | per-scenario |
+| `electricity.transmission_limit` | `v1.0` | constant |
+| `electricity.extendable_carriers` | all `[]` (no expansion) | constant |
+| `electricity.powerplants_filter` | `"(DateOut > Y or DateOut != DateOut) and (DateIn < Y+1 or DateIn != DateIn)"` | per-scenario |
+| `lines.under_construction` | `zero` | constant |
+| `transmission_projects.enable` | `false` | constant |
+| `sector.biomass` | `false` (override; default `true`) | constant |
+| `pypsa_eur.Generator` | includes `biomass` (override; default omits it) | constant |
+| `sector.methanol.biomass_to_methanol` | `false` (override; default `true`) | constant |
+| `sector.methanol.methanol_to_power.ocgt` | `false` (override; default `true`) | constant |
+| `sector.transport`, `heating`, `industry` etc. | `false` (all demand sectors disabled) | constant |
+| `sector.electricity_distribution_grid` | `false` (override; default `true`) | constant |
+| `adjustments` H2 Electrolysis / H2 Store | `p_nom_max: 0`, `e_nom_max: 0` | constant |
+| `backcasting.enable` | `false` for 2025; `true` for earlier years | per-scenario |
+| countries | `[DE]` (test model) | constant |
+| snapshots | March 2013, 3H resolution | constant |
 
 ### Key architectural fact: planning_horizons[0] controls three things simultaneously
 
@@ -540,9 +550,202 @@ The OSM snapshot is a 2026 static map — no automated historical network select
 
 ---
 
-## 5. Technology Costs and Fuel Prices
+## 5. Electricity-Only Sector Scope
 
-### 5.1 Snakemake Workflow
+### 5.1 Design Philosophy
+
+PyPSA-Eur in `foresight: myopic` always runs through `prepare_sector_network.py`, which expects a full sector-coupled network. For the GHGP electricity-only model, the strategy is to **disable all demand sectors** (transport, heating, industry, shipping, aviation, agriculture) while retaining the minimal fuel supply infrastructure needed for dispatchable conventional generators.
+
+The correct setting for biomass is **`sector.biomass: false`** — explicitly overriding the `config.default.yaml` default of `true`. With `sector.biomass: true`, `add_biomass()` creates an `"EU solid biomass"` bus and a mandatory-dispatch ENSPRESO Generator, which causes infeasibility in a dispatch model (the bus has committed generation it cannot shed).
+
+Historical biomass powerplants from PPM are preserved as simple AC Generators (carrier `"biomass"`) by adding `biomass` to the `pypsa_eur.Generator` list in `config.rmi.yaml`. This prevents `remove_elec_base_techs()` in `prepare_sector_network.py` from dropping them — which it would do by default, since `biomass` is absent from the default `pypsa_eur.Generator` list.
+
+The four biomass sub-flags (`biomass_boiler`, `biogas_upgrading`, `biomass_to_liquid`, `electrobiofuels`) all reside inside `add_biomass()` (at `prepare_sector_network.py` lines 4288, 4062, 4315, 4370 respectively) and are therefore dead code when `sector.biomass: false`. They do not need to be set. Only the `methanol.*` flags — which live outside `add_biomass()` — require explicit overrides.
+
+### 5.2 Biomass and CHP Configuration
+
+**Pipeline overview** (electricity-only path):
+
+```
+scripts/build_powerplants.py (line 236):
+  PPM "Solid Biomass" / "Biogas" → renamed to "Bioenergy" fueltype
+         |
+         ▼
+scripts/add_electricity.py (line 284):
+  "bioenergy" → adds Generator with carrier="biomass"
+         |
+         ▼
+scripts/prepare_sector_network.py:
+  remove_elec_base_techs() (line 656):
+    checks pypsa_eur.Generator list → "biomass" is included → Generators kept
+  add_biomass() NOT called (sector.biomass: false):
+    → no "EU solid biomass" bus created
+    → no ENSPRESO mandatory-dispatch Generator added
+    → no infeasibility risk
+         |
+         ▼
+  PPM biomass Generators dispatch freely as simple AC electricity Generators
+```
+
+**Biomass sub-flags**: `biomass_boiler`, `biogas_upgrading`, `biomass_to_liquid`, and `electrobiofuels` all reside inside `add_biomass()` (at `prepare_sector_network.py` lines 4288, 4062, 4315, 4370 respectively). With `sector.biomass: false`, `add_biomass()` is never called, so these four flags are dead code and do **not** need to be set.
+
+Only the `methanol.*` flags live outside `add_biomass()` and still require explicit overrides:
+
+| Flag | Default | Behaviour if `true` | Required override |
+|---|---|---|---|
+| `methanol.biomass_to_methanol` | `true` | Adds methanol production Links with investment variables (outside `add_biomass()`) | `false` |
+| `methanol.methanol_to_power.ocgt` | `true` | Adds OCGT methanol-to-power Link with `p_nom_extendable=True` (outside `add_biomass()`) | `false` |
+
+### 5.3 Biomass Generators as Simple AC Generators
+
+With `sector.biomass: false` and `biomass` included in the `pypsa_eur.Generator` list, historical biomass powerplants from PPM operate as **simple AC Generators** (not CHP Links). This is the correct representation for the electricity-only backcasting model:
+
+- `p_nom` is taken directly from PPM capacity data
+- Marginal cost is computed from the biomass fuel price in `costs_{Y}_processed.csv`
+- No heat bus is needed; no efficiency penalty from CHP co-production assumptions
+- The `add_existing_baseyear.py` biomass CHP path (`"Bioenergy"` fueltype → `"urban central solid biomass CHP"` Links) is not triggered because the `"EU solid biomass"` bus does not exist
+
+This approach is more correct than the previous `sector.biomass: true` path, which added CHP Links with an electricity efficiency of ~0.40 and required `bus2=""` workarounds due to absent heat buses. As simple Generators, biomass plants are modelled symmetrically to other PPM-sourced conventional technologies.
+
+### 5.4 `conventional_generation` Links in Sector Network
+
+Default: `sector.conventional_generation: {OCGT: gas, CCGT: gas}`.
+
+`add_generation()` (line 1317 of `prepare_sector_network.py`) adds a **Link** for each entry with:
+- `p_nom = 0` (because `keep_existing_capacities: false` → `existing_capacities = None`)
+- `p_nom_min = 0`
+- `p_nom_extendable = False` (OCGT/CCGT are not in `extendable_carriers.Generator: []`)
+
+With all three at zero, these Links are **inert** — they cannot dispatch anything. They do **not** interfere with the PPM-sourced OCGT/CCGT **Generators** from the electricity pipeline; the two components coexist under different PyPSA component classes (Link vs Generator) and different names.
+
+`add_carrier_buses()` is also called for the `gas` carrier, creating per-node gas buses even with `gas_network: false`. This is a side effect required for Link `bus0` connectivity; it does not activate a dispatchable gas reticulation network.
+
+Optional improvement: set `conventional_generation: {}` in the override config to suppress the zero-capacity Links entirely and keep the sector network leaner.
+
+### 5.5 `regional_{fuel}_demand` Flags
+
+These flags control the spatial resolution of **demand** buses. Critically, the **supply** buses are **always EU-wide** regardless of the flag value — this is hardcoded in `define_spatial()`:
+
+```python
+# scripts/prepare_sector_network.py, define_spatial() — always set, never conditioned on the flag:
+spatial.oil.nodes     = ["EU oil"]       # supply bus — always EU
+spatial.oil.locations = ["EU"]           # always EU
+spatial.coal.nodes    = ["EU coal"]      # supply bus — always EU
+spatial.methanol.nodes = ["EU methanol"] # supply bus — always EU
+```
+
+The flag only controls the `demand_locations` and named demand bus lists (`naphtha`, `kerosene`, `shipping`, etc.):
+
+| Flag | Default | When `true` | When `false` |
+|---|---|---|---|
+| `regional_oil_demand` | `true` | per-node demand buses (e.g., `"DE0 naphtha for industry"`) | single demand bus (e.g., `"EU naphtha for industry"`) |
+| `regional_coal_demand` | `false` | per-node demand buses (e.g., `"DE0 coal for industry"`) | `"EU coal for industry"` |
+| `methanol.regional_methanol_demand` | `false` | per-node demand buses | `"EU shipping methanol"` etc. |
+
+In all cases, `spatial.oil.nodes = ["EU oil"]` remains the **single supply bus** — it is the `bus0` for PPM-sourced oil generators in `add_existing_baseyear.py`. Changing `regional_oil_demand` does **not** alter the supply side.
+
+With all demand sectors disabled, neither the demand buses nor the supply-to-demand Links are ever created, making these flags **fully irrelevant** in the electricity-only setup. `regional_oil_demand: false` is set explicitly as defensive documentation: it makes the intended EU-wide supply topology explicit and prevents confusion if demand sectors are ever re-enabled.
+
+### 5.6 H2 Electrolysis and H2 Store Suppression via `adjustments`
+
+`add_h2_gas_infrastructure()` in `prepare_sector_network.py` adds H2 buses and H2 Electrolysis Links **unconditionally** (lines 1841–1856), regardless of `H2_network`, `hydrogen_fuel_cell`, or `hydrogen_underground_storage` flags:
+
+```python
+n.add("Bus", nodes + " H2", ...)                    # always added
+n.add("Link", nodes + " H2 Electrolysis",
+      p_nom_extendable=True, ...)                    # always added — no flag guard
+```
+
+H2 Fuel Cell and H2 Turbine have explicit `if options[...]:` guards; H2 underground storage is guarded by `if options["hydrogen_underground_storage"]:`. But H2 Electrolysis is always created with `p_nom_extendable=True`, making it an unintended investment variable in the electricity-only model.
+
+The `adjustments` block suppresses this:
+
+```yaml
+adjustments:
+  sector:
+    absolute:
+      Link:
+        H2 Electrolysis:
+          p_nom_max: 0.0   # caps extendable capacity at zero → no investment, no dispatch
+      Store:
+        H2 Store:
+          e_nom_max: 0.0   # caps any H2 Store that may be added
+```
+
+### 5.7 Backcasting Recommendations for Sector Scope
+
+The following settings are **constant across all backcasting years** and must be set once in the base config (`config.rmi.yaml`):
+
+```yaml
+pypsa_eur:
+  Generator:
+  - onwind
+  - "offwind-ac"
+  - "offwind-dc"
+  - "offwind-float"
+  - "solar-hsat"
+  - solar
+  - ror
+  - nuclear
+  - biomass  # keeps PPM biomass Generators; remove_elec_base_techs() checks this list
+
+sector:
+  # Demand sectors — all disabled
+  transport: false
+  heating: false
+  industry: false
+  shipping: false
+  aviation: false
+  agriculture: false
+
+  # Biomass — override default (true) to prevent infeasibility from mandatory-dispatch supply bus
+  biomass: false    # no "EU solid biomass" bus; PPM biomass plants preserved as simple AC Generators
+                    # via pypsa_eur.Generator list above.
+                    # biomass_boiler / biogas_upgrading / biomass_to_liquid / electrobiofuels:
+                    # NOT needed (all 4 inside add_biomass(), never called when biomass: false)
+
+  # H2 and energy conversion — disable
+  dac: false
+  co2_network: false
+  co2_spatial: false
+  regional_co2_sequestration_potential:
+    enable: false
+  H2_network: false
+  hydrogen_fuel_cell: false
+  hydrogen_turbine: false
+  SMR: false
+  SMR_cc: false
+  gas_network: false
+  gas_distribution_grid: false
+  electricity_distribution_grid: false   # no distribution grid in electricity-only (default: true)
+  ammonia: false
+  methanation: false
+  hydrogen_underground_storage: false
+
+  # Methanol sub-flags — override defaults that add investment variables
+  methanol:
+    biomass_to_methanol: false   # default: true → adds investment variables
+    methanol_to_power:
+      ocgt: false                # default: true → adds investment variables
+
+  regional_oil_demand: false     # EU-wide oil bus (consistent with electricity-network PPM generators)
+
+adjustments:
+  sector:
+    absolute:
+      Link:
+        H2 Electrolysis:
+          p_nom_max: 0.0   # H2 Electrolysis always added with p_nom_extendable=True
+      Store:
+        H2 Store:
+          e_nom_max: 0.0   # any H2 Store that may be added
+```
+
+---
+
+## 6. Technology Costs and Fuel Prices
+
+### 6.1 Snakemake Workflow
 
 ```
 data/costs/archive/v0.14.0/costs_{Y}.csv   ← raw technology cost assumptions
@@ -561,7 +764,7 @@ The processed file `costs_{Y}_processed.csv` is consumed by:
 - `add_existing_baseyear.py`: `lifetime`, `capital_cost` for existing plant groupings
 - `prepare_network.py`: transmission capital costs
 
-### 5.2 Custom Cost Overrides (`custom_costs.csv`)
+### 6.2 Custom Cost Overrides (`custom_costs.csv`)
 
 `data/custom_costs.csv` allows parameter overrides per technology and planning horizon without modifying the raw cost files. Each row specifies `planning_horizon`, `technology`, `parameter`, and `value`. Rows with `planning_horizon=all` apply to every year; rows with a specific year (e.g. `2024`) apply only to that wildcard.
 
@@ -569,7 +772,7 @@ Overrides fall into two categories:
 - **Raw attributes** (`fuel`, `efficiency`, `investment`, `lifetime`, `FOM`, `VOM`): applied before `marginal_cost` and `capital_cost` are computed — the correct way to set fuel prices.
 - **Prepared attributes** (`marginal_cost`, `capital_cost`): applied after computation, directly overriding the derived values.
 
-### 5.3 Conventional Generator Fuel Prices: `dynamic_fuel_price`
+### 6.3 Conventional Generator Fuel Prices: `dynamic_fuel_price`
 
 ```yaml
 conventional:
@@ -581,7 +784,7 @@ conventional:
 
 For the GHGP project `dynamic_fuel_price: false` is correct: snapshots use 2013 climate data mapped to year-Y demand levels, so a static annual-average fuel price is consistent with this approximation.
 
-### 5.4 Backcasting Recommendations for Technology Costs and Fuel Prices
+### 6.4 Backcasting Recommendations for Technology Costs and Fuel Prices
 
 For backcasting to year Y, the key cost-side change is to use **historically correct fossil fuel import prices** for that year. Gas, coal, and oil prices varied significantly across 2020–2025 (notably the 2021–2022 gas price spike), and using default or future-year values would distort the dispatch of conventional generators.
 
@@ -592,9 +795,9 @@ The recommended approach is:
 
 ---
 
-## 6. Backcasting Implementation Strategy
+## 7. Backcasting Implementation Strategy
 
-### 6.1 Core Principle
+### 7.1 Core Principle
 
 For backcasting to year Y, **`scenario.planning_horizons: [Y]`** must match the target year. This single parameter change propagates to:
 - `baseyear = Y` in `add_existing_baseyear.py`
@@ -603,7 +806,7 @@ For backcasting to year Y, **`scenario.planning_horizons: [Y]`** must match the 
 
 All other changes listed below follow from this primary constraint.
 
-### 6.2 Required Configuration Changes per Year Y
+### 7.2 Required Configuration Changes per Year Y
 
 ```yaml
 # Required changes in config/test/config.rmi.yaml (or per-year scenario file)
@@ -668,6 +871,18 @@ The following settings are **one-time overrides from `config.default.yaml`**, co
 ```yaml
 # One-time overrides from config.default.yaml (constant across all backcasting years):
 
+pypsa_eur:
+  Generator:
+  - onwind
+  - "offwind-ac"
+  - "offwind-dc"
+  - "offwind-float"
+  - "solar-hsat"
+  - solar
+  - ror
+  - nuclear
+  - biomass  # ← 6c. keeps PPM biomass Generators; remove_elec_base_techs() checks this list
+
 electricity:
   extendable_carriers:
     Generator: []      # ← 6a. no capacity expansion for generators (default: [solar, onwind, OCGT, CCGT, ...])
@@ -684,10 +899,57 @@ transmission_projects:
   enable: false                # ← 10. exclude future TYNDP projects (default: true)
 
 sector:
-  electricity_distribution_grid: false  # ← 11. electricity-only model, no distribution grid (default: true)
+  # Demand sectors — all disabled
+  transport: false             # ← 11. no transport demand
+  heating: false               #    no heat demand
+  industry: false              #    no industry demand
+  shipping: false              #    no shipping demand
+  aviation: false              #    no aviation demand
+  agriculture: false           #    no agriculture demand
+  electricity_distribution_grid: false  # ← 12. no distribution grid (default: true)
+
+  # Biomass — override default to prevent infeasibility; sub-flags not needed (inside add_biomass())
+  biomass: false               # ← 13. prevents "EU solid biomass" bus + mandatory-dispatch Generator
+                               #    PPM biomass plants preserved via pypsa_eur.Generator (item 6c)
+                               #    NOTE: biomass_boiler / biogas_upgrading / biomass_to_liquid /
+                               #    electrobiofuels NOT needed — all 4 inside add_biomass()
+  methanol:
+    biomass_to_methanol: false # ← 14. adds investment variables (default: true)
+    methanol_to_power:
+      ocgt: false              # ← 15. adds investment variable (default: true)
+
+  # Other sector components — disable to avoid crashes or investment variables
+  dac: false
+  co2_network: false
+  co2_spatial: false
+  regional_co2_sequestration_potential:
+    enable: false
+  H2_network: false
+  hydrogen_fuel_cell: false
+  hydrogen_turbine: false
+  SMR: false
+  SMR_cc: false
+  gas_network: false
+  gas_distribution_grid: false
+  ammonia: false
+  methanation: false
+  hydrogen_underground_storage: false
+  regional_oil_demand: false   # ← defensive/documentary only: supply bus is always "EU oil" regardless
+                               #   (flag only affects demand buses, which are never created when all
+                               #    demand sectors are disabled)
+
+adjustments:
+  sector:
+    absolute:
+      Link:
+        H2 Electrolysis:
+          p_nom_max: 0.0   # ← 16. H2 Electrolysis always added unconditionally with p_nom_extendable=True
+      Store:
+        H2 Store:
+          e_nom_max: 0.0   # ← 17. suppress any H2 Store that slips through flag guards
 ```
 
-### 6.3 Cost File and Fuel Price Strategy
+### 7.3 Cost File and Fuel Price Strategy
 
 **Cost file requirement**: `add_electricity` reads `costs_{costs.year}_processed.csv` and `add_existing_baseyear` reads `costs_{planning_horizons[0]}_processed.csv`. Both must point to a valid processed cost file.
 
@@ -704,7 +966,7 @@ The recommended approach is to override the `fuel` parameter in `data/custom_cos
 2. `lignite` is domestic (not in World Bank CMO) — use a fixed assumption (~1–3 EUR/MWh_th) with `planning_horizon=all`.
 3. The `planning_horizon` column must be a **string** matching `str(snakemake.wildcards.planning_horizons)`. The CSV is read with `dtype={"planning_horizon": "str"}`, so integer values like `2024` in the CSV are correctly matched.
 
-### 6.4 Rules Requiring Changes
+### 7.4 Rules Requiring Changes
 
 No Snakemake rules require code modification. The `add_existing_baseyear` rule's wildcard constraint:
 
@@ -716,7 +978,7 @@ wildcard_constraints:
 
 automatically restricts the rule to run only for the first (and only) planning horizon. With `planning_horizons: [Y]`, it runs exclusively for year Y — correct behavior.
 
-### 6.5 Six-Year Backcasting (Multi-Year Automation)
+### 7.5 Six-Year Backcasting (Multi-Year Automation)
 
 To run all six backcasting years in one workflow:
 
@@ -735,7 +997,7 @@ The `powerplants_filter` values for each year:
 | 2024 | `"(DateOut > 2024 or DateOut != DateOut) and (DateIn < 2025 or DateIn != DateIn)"` |
 | 2025 | `"(DateOut > 2025 or DateOut != DateOut) and (DateIn < 2026 or DateIn != DateIn)"` |
 
-### 6.6 What Remains Unchanged Across All Backcasting Years
+### 7.6 What Remains Unchanged Across All Backcasting Years
 
 The following settings from `config.default.yaml` do not need to be overridden at all:
 
@@ -745,7 +1007,7 @@ The following settings from `config.default.yaml` do not need to be overridden a
 
 ---
 
-## 7. Cross-Reference: Config → Code Mapping
+## 8. Cross-Reference: Config → Code Mapping
 
 | Config key | Consuming rule | Script | Line | Effect |
 |---|---|---|---|---|
@@ -760,6 +1022,14 @@ The following settings from `config.default.yaml` do not need to be overridden a
 | `electricity.estimate_battery_capacities` | `add_electricity` | `add_electricity.py` | ~710 | `false` → `attach_existing_batteries()` not called |
 | `electricity.estimate_renewable_capacities` | `add_electricity` | `add_electricity.py` | 1301-1320 | **Entirely ignored in myopic mode** (skipped with log message) |
 | `sector.electricity_distribution_grid` | `prepare_sector_network` | `prepare_sector_network.py` | — | `false` → `insert_electricity_distribution_grid()` not called |
+| `sector.biomass` | `prepare_sector_network` | `prepare_sector_network.py` | 3764 | `false` (override) → `add_biomass()` not called; no `"EU solid biomass"` bus; no mandatory-dispatch ENSPRESO Generator; PPM biomass Generators preserved via `pypsa_eur.Generator` |
+| `pypsa_eur.Generator` | `prepare_sector_network` | `prepare_sector_network.py` | 656 | includes `biomass` → `remove_elec_base_techs()` keeps PPM biomass Generators; default list omits `biomass` → they would be dropped otherwise |
+| `sector.methanol.biomass_to_methanol` | `prepare_sector_network` | `prepare_sector_network.py` | — | `true` (default) adds methanol investment variables → must be `false` |
+| `sector.methanol.methanol_to_power.ocgt` | `prepare_sector_network` | `prepare_sector_network.py` | — | `true` (default) adds OCGT methanol Link with `p_nom_extendable=True` → must be `false` |
+| `sector.conventional_generation` | `prepare_sector_network` | `prepare_sector_network.py` | 1317 | Default `{OCGT: gas, CCGT: gas}` → `add_generation()` adds zero-capacity (`p_nom=0`, not extendable) Links; harmless but adds inert components; optional: override with `{}` |
+| `sector.regional_oil_demand` | `prepare_sector_network` | `prepare_sector_network.py` | 160 | `false` → single `"EU oil"` bus; `true` → per-node oil buses; irrelevant when all demand sectors disabled, but `false` is consistent with electricity-only PPM generator bus assignment |
+| `adjustments.sector.absolute.Link.H2 Electrolysis.p_nom_max` | `prepare_sector_network` | `prepare_sector_network.py` | 1843 | `0.0` → caps the unconditionally-added `p_nom_extendable=True` H2 Electrolysis Link at zero capacity; prevents investment and dispatch |
+| `adjustments.sector.absolute.Store.H2 Store.e_nom_max` | `prepare_sector_network` | `prepare_sector_network.py` | 1916 | `0.0` → caps any H2 Store created (underground or overground) at zero energy capacity |
 | `costs.year` | `add_electricity`, `prepare_network` | multiple | — | Cost file year for overnight mode / pre-baseyear rules |
 | `conventional.dynamic_fuel_price` | `add_electricity` | `add_electricity.py` | ~1370 | `false` → static marginal_cost from processed CSV; `true` → hourly marginal_cost from `monthly_fuel_price.csv` |
 | `custom_costs.csv` `fuel` param | `process_cost_data` | `process_cost_data.py` | 178-183 | Raw attr override: sets `gas.fuel` → auto-propagates to OCGT/CCGT → recomputes `marginal_cost = VOM + fuel/efficiency` |
@@ -769,11 +1039,11 @@ The following settings from `config.default.yaml` do not need to be overridden a
 
 ---
 
-## 8. Backcasting-Specific Modifications
+## 9. Backcasting-Specific Modifications
 
 This section documents all modifications made to the PyPSA-Eur codebase and data files to support backcasting. Changes fall into two categories: **Snakemake workflow modifications** (rules and scripts) and **data modifications** (input data files).
 
-### 8.1 Summary of Changes
+### 9.1 Summary of Changes
 
 **Snakemake workflow files:**
 
@@ -788,7 +1058,7 @@ This section documents all modifications made to the PyPSA-Eur codebase and data
 |---|---|
 | `data/custom_costs.csv` | Added `fuel` parameter overrides for `gas`, `coal`, and `oil` for each backcasting year 2020–2025 |
 
-### 8.2 The `copy_cost_data_for_backcasting` Rule (`retrieve.smk`)
+### 9.2 The `copy_cost_data_for_backcasting` Rule (`retrieve.smk`)
 
 ```python
 if (
@@ -811,7 +1081,7 @@ if (
 
 The rule is only registered in the DAG when `backcasting.enable: true` and `year_back ≠ year_costs`. Both input and output are **concrete paths** (no wildcards), resolved at parse time from config values.
 
-### 8.3 The `process_cost_data` Input Change (`build_electricity.smk`)
+### 9.3 The `process_cost_data` Input Change (`build_electricity.smk`)
 
 The original input used a direct rule reference:
 ```python
@@ -825,7 +1095,7 @@ costs=COSTS_DATASET["folder"] + "/costs_{planning_horizons}.csv",  # MODIFIED
 
 This is the critical change. With a direct rule reference, Snakemake is forced to use `retrieve_cost_data` as the producer — it would try to download `costs_2024.csv` from GitHub (which returns 404). With a plain path string, Snakemake applies its standard **rule selection algorithm** to find the best producer of that path.
 
-### 8.4 Why It Works Despite `planning_horizons: [2024]`
+### 9.4 Why It Works Despite `planning_horizons: [2024]`
 
 `scenario.planning_horizons: [2024]` controls only which **final targets** Snakemake expands (i.e., which solved networks to build). It does not restrict the wildcard `{planning_horizons}` to the value `2024` in intermediate rules — that wildcard is only constrained by the global `wildcard_constraints: planning_horizons=r"[0-9]{4}"` (any 4-digit year, in `Snakefile` line 61).
 
@@ -853,7 +1123,7 @@ process_cost_data(planning_horizons=2024)
 
 ---
 
-### 8.5 Fuel Price Data Modifications (`data/custom_costs.csv`)
+### 9.5 Fuel Price Data Modifications (`data/custom_costs.csv`)
 
 **Data source**: World Bank CMO Pink Sheet (`CMO-Historical-Data-Monthly.xlsx`), retrieved via the `retrieve_worldbank_commodity_prices` rule and processed by the `build_fossil_fuel_prices` rule. The three commodity series used are:
 

@@ -8,8 +8,14 @@ Usage (from the repo root):
     python run/backcasting_run.py
 
 The script reads available scenarios from config/test/scenarios.rmi.yaml,
-lets the user select one or more scenarios (by year or name), generates a
-temporary merged config, and runs `snakemake solve_sector_networks` for each.
+lets the user select one or more scenarios (by year or name), and runs
+`snakemake solve_sector_networks` for each using:
+
+    snakemake --configfile BASE_CONFIG --config 'run={name: <scenario>}'
+
+so that Snakemake performs all config merging natively — scenarios.enable
+stays true, dynamic_getter is used, and metadata from prior direct runs is
+always recognised as up-to-date.
 
 Resource sharing
 ----------------
@@ -47,7 +53,6 @@ import yaml
 
 BASE_CONFIG = "config/test/config.rmi.yaml"
 SCENARIOS_FILE = "config/test/scenarios.rmi.yaml"
-TEMP_CONFIG = "run/config.rmi_temp.yaml"
 SNAKEMAKE_TARGET = "solve_sector_networks"
 
 # Matches _20XX (year 20xx) as a name segment: _2025. / _2025_ / _2025 at end
@@ -114,14 +119,6 @@ def symlink_shared_resources(reference_dir: Path, target_dir: Path) -> list[Path
 
 
 # ---------------------- Utility Functions ----------------------
-
-
-def deep_update(original, updates):
-    for key, value in updates.items():
-        if isinstance(value, dict) and isinstance(original.get(key), dict):
-            deep_update(original[key], value)
-        else:
-            original[key] = value
 
 
 def select_scenarios(scenario_list):
@@ -193,6 +190,19 @@ def select_cpus():
         print(f"  '{cpu}' is not valid. Please enter 'all' or a positive number.")
 
 
+def select_dry_run_mode() -> bool:
+    """Ask whether to do a dry-run + confirmation before each scenario."""
+    while True:
+        answer = input(
+            "\nDry-run before each scenario? [Y/n] "
+        ).strip().lower()
+        if answer in ("", "y", "yes"):
+            return True
+        if answer in ("n", "no"):
+            return False
+        print("  Please enter 'y' or 'n'.")
+
+
 # ---------------------- Main Script ----------------------
 
 
@@ -200,6 +210,10 @@ def main():
     # Load available scenarios
     with open(SCENARIOS_FILE) as f:
         scenarios_config = yaml.safe_load(f)
+
+    # Load base config for fallback values
+    with open(BASE_CONFIG) as f:
+        base_config = yaml.safe_load(f)
 
     scenario_list = list(scenarios_config.keys())
 
@@ -217,7 +231,10 @@ def main():
         print("\nOperation cancelled by user.")
         return
 
+    dry_run_mode = select_dry_run_mode()
+
     print(f"\nCores flag: {cores_flag}")
+    print(f"Dry-run mode: {'enabled' if dry_run_mode else 'disabled'}")
     print("=" * 60)
 
     # Track the first completed scenario folder to use as symlink reference
@@ -230,27 +247,19 @@ def main():
 
         target_resources = Path(f"resources/{scenario_name}")
 
-        # Load base config and merge scenario overrides
-        with open(BASE_CONFIG) as f:
-            config = yaml.safe_load(f)
-        deep_update(config, scenarios_config[scenario_name])
-
-        # Override run settings: direct name, disable scenario file
-        # shared_resources.policy stays false (see module docstring for reasoning)
-        deep_update(config, {
-            "run": {
-                "name": scenario_name,
-                "scenarios": {"enable": False},
-                "shared_resources": {
-                    "policy": False,
-                    "exclude": [],
-                },
-            }
-        })
-
-        # Write temporary merged config (needed before symlinks + cleanup-metadata)
-        with open(TEMP_CONFIG, "w") as f:
-            yaml.safe_dump(config, f, default_flow_style=False)
+        # --config overrides run.name and scenario.planning_horizons inside the
+        # already-loaded configfile, preserving scenarios.enable:true and the
+        # dynamic_getter code path.
+        # scenario.planning_horizons must match the per-scenario value so that:
+        #   1. solve_sector_networks (collect.smk) expands over the correct year
+        #   2. add_existing_baseyear.wildcard_constraints matches the baseyear
+        ph = (
+            (scenarios_config.get(scenario_name) or {}).get("scenario") or {}
+        ).get("planning_horizons") or base_config["scenario"]["planning_horizons"]
+        config_override = (
+            f"'run={{name: {scenario_name}}}'"
+            f" 'scenario={{planning_horizons: {ph}}}'"
+        )
 
         # Symlink year-independent files from the reference scenario.
         # Then run --cleanup-metadata so Snakemake does not flag the freshly
@@ -265,38 +274,32 @@ def main():
                 files_str = " ".join(str(p) for p in symlinked)
                 cleanup_cmd = (
                     f"snakemake --cleanup-metadata {files_str}"
-                    f" --configfile {TEMP_CONFIG}"
+                    f" --configfile {BASE_CONFIG} --config {config_override}"
                 )
                 print(f"  Cleaning up metadata for symlinked files...")
                 os.system(cleanup_cmd)
 
-        # Build and execute snakemake command
+        # Build and execute snakemake command.
         snakemake_base = (
             f"snakemake {cores_flag} {SNAKEMAKE_TARGET}"
-            f" --configfile {TEMP_CONFIG}"
+            f" --configfile {BASE_CONFIG} --config {config_override}"
         )
 
-        # Dry run first
-        dry_run_cmd = snakemake_base + " --dry-run"
-        print(f"Dry-run command: {dry_run_cmd}\n")
-        os.system(dry_run_cmd)
+        if dry_run_mode:
+            # Dry run first
+            dry_run_cmd = snakemake_base + " --dry-run"
+            print(f"Dry-run command: {dry_run_cmd}\n")
+            os.system(dry_run_cmd)
 
-        # Ask for confirmation before the actual run
-        print()
-        confirm = input("Proceed with the actual run? [y/N] ").strip().lower()
-        if confirm not in ("y", "yes"):
-            print("  Skipped.")
-            if os.path.exists(TEMP_CONFIG):
-                os.remove(TEMP_CONFIG)
-            continue
+            # Ask for confirmation before the actual run
+            print()
+            confirm = input("Proceed with the actual run? [y/N] ").strip().lower()
+            if confirm not in ("y", "yes"):
+                print("  Skipped.")
+                continue
 
         print(f"\nRun command: {snakemake_base}\n")
         os.system(snakemake_base)
-
-        # Clean up temp config
-        if os.path.exists(TEMP_CONFIG):
-            os.remove(TEMP_CONFIG)
-            print(f"\nCleaned up: {TEMP_CONFIG}")
 
         # After the first run completes, use this scenario as the symlink reference
         # for all subsequent scenarios in this batch

@@ -21,7 +21,9 @@ remote:
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#run
 run:
   prefix: ""
-  name: test-baseline-2025-3H-1M-DE
+  name:
+  #- test-baseline-2025-3H-1M-DE
+  - test-project-2025-3H-1M-DE-solar-100MW
   scenarios:
     enable: true
     file: config/test/scenarios.rmi.yaml
@@ -60,6 +62,12 @@ backcasting: # needed for renaming costs data costs_{year_costs}.csv into costs_
   year_back: 2024
   year_costs: 2025
 
+# docs: project scenario — additional renewable energy project injected after add_existing_baseyear
+# Overridden per scenario in scenarios.rmi.yaml (enable: true for project scenarios)
+project:
+  enable: false
+  file: data/project_generators.csv
+
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#electricity
 electricity:
   extendable_carriers:
@@ -77,11 +85,36 @@ lines:
 transmission_projects:
   enable: false
 
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#pypsa_eur
+# Overrides default to keep biomass generators as simple AC-connected Generators.
+# Without this, biomass generators added by add_electricity.py are removed by
+# remove_elec_base_techs() in prepare_sector_network.py (carrier not in the keep list).
+pypsa_eur:
+  Bus:
+  - AC
+  Link:
+  - DC
+  Generator:
+  - onwind
+  - "offwind-ac"
+  - "offwind-dc"
+  - "offwind-float"
+  - "solar-hsat"
+  - solar
+  - ror
+  - nuclear
+  - biomass  # keep historical biomass powerplants as simple AC Generators
+  StorageUnit:
+  - PHS
+  - hydro
+  Store: []
+
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#sector
 sector:
+  biomass: false        # no EU solid biomass bus → no infeasibility from mandatory dispatch;
+                        # historical biomass powerplants are kept via pypsa_eur.Generator above
   transport: false
-  heating: false # temporary
-  biomass: false # temporary
+  heating: false
   industry: false
   shipping: false
   aviation: false
@@ -106,7 +139,9 @@ sector:
       ocgt: false
   hydrogen_underground_storage: false
   methanation: false
-  regional_oil_demand: false
+  regional_oil_demand: false  # defensive/documentary only: supply bus ("EU oil") is hardcoded at
+                              # prepare_sector_network.py:178 regardless of this flag; flag only
+                              # affects demand buses (never created when all demand sectors disabled)
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#clustering
 clustering:
@@ -123,7 +158,7 @@ adjustments:
       Store:
         H2 Store:
           e_nom_max: 0.0
-    
+
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#solving
 solving:
   options:

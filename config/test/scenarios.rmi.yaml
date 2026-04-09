@@ -16,13 +16,6 @@ test-baseline-2025-3H-1M-DE:
   load:
     fixed_year: 2025
 
-  # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#biomass
-  biomass:
-    share_unsustainable_use_retained:
-      2025: 1
-    share_sustainable_potential_available:
-      2025: 0
-
   # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#costs
   costs:
     year: 2025
@@ -40,13 +33,6 @@ test-baseline-2024-3H-1M-DE:
   # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#load
   load:
     fixed_year: 2024
-
-  # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#biomass
-  biomass:
-    share_unsustainable_use_retained:
-      2024: 1
-    share_sustainable_potential_available:
-      2024: 0
 
   # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#existing_capacities
   existing_capacities:
@@ -75,7 +61,43 @@ test-baseline-2024-3H-1M-DE:
   costs:
     year: 2024
 
+  # build_biomass_potentials uses dict.get(year) with no interpolation — must add
+  # any backcasting year missing from config.default.yaml's anchor years.
+  # Required even with sector.biomass: false because biomass_potentials is an
+  # unconditional input of prepare_sector_network (build_sector.smk:1649).
+  biomass:
+    share_unsustainable_use_retained:
+      2024: 1.0
+    share_sustainable_potential_available:
+      2024: 0
+
   backcasting: # needed for renaming costs data costs_{year_costs}.csv into costs_{year_back}.csv
     enable: true
     year_back: 2024
     year_costs: 2025
+
+test-project-2025-3H-1M-DE-solar-100MW:
+  # Project scenario: adds a 100 MW solar generator in Germany on top of the 2025 baseline.
+  # Inherits all defaults from config.rmi.yaml; only overrides listed here.
+
+  # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#scenario
+  scenario:
+    planning_horizons:
+    - 2025
+
+  # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#electricity
+  electricity:
+    powerplants_filter: "(DateOut > 2025 or DateOut != DateOut) and (DateIn < 2026 or DateIn != DateIn)"
+
+  # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#load
+  load:
+    fixed_year: 2025
+
+  # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#costs
+  costs:
+    year: 2025
+
+  # Project-specific override: enable additional renewable generator injection
+  project:
+    enable: true
+    file: data/project_generators.csv
