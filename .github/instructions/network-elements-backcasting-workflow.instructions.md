@@ -603,9 +603,12 @@ With `sector.biomass: false` and `biomass` included in the `pypsa_eur.Generator`
 - `p_nom` is taken directly from PPM capacity data
 - Marginal cost is computed from the biomass fuel price in `costs_{Y}_processed.csv`
 - No heat bus is needed; no efficiency penalty from CHP co-production assumptions
-- The `add_existing_baseyear.py` biomass CHP path (`"Bioenergy"` fueltype → `"urban central solid biomass CHP"` Links) is not triggered because the `"EU solid biomass"` bus does not exist
 
-This approach is more correct than the previous `sector.biomass: true` path, which added CHP Links with an electricity efficiency of ~0.40 and required `bus2=""` workarounds due to absent heat buses. As simple Generators, biomass plants are modelled symmetrically to other PPM-sourced conventional technologies.
+**Important**: in the original PyPSA-Eur code, `add_existing_baseyear.py` added `"urban central solid biomass CHP"` Links **unconditionally**, even when `sector.biomass: false`. It silently created phantom `"<node> solid biomass"` buses and left them with no supply, resulting in two simultaneous bugs:
+1. **Double-counting** of capacity and dispatch (both Generators and Links representing the same plants).
+2. **Free fuel** (the phantom bus had no energy balance constraint, so biomass fuel cost was zero).
+
+This has been fixed in the GHGP codebase (see `pypsa-eur-code-modifications.instructions.md` §3): a guard in `add_power_capacities_installed_before_baseyear()` skips the biomass CHP Links when `options["biomass"]` is `False`. Biomass plants are therefore represented exclusively as the PPM Generators, symmetrically to other conventional technologies.
 
 ### 5.4 `conventional_generation` Links in Sector Network
 

@@ -160,6 +160,7 @@ def add_power_capacities_installed_before_baseyear(
     capacity_threshold: float,
     lifetime_values: dict[str, float],
     renewable_carriers: list[str],
+    options: dict,
 ) -> None:
     """
     Add power generation capacities installed before base year.
@@ -184,6 +185,8 @@ def add_power_capacities_installed_before_baseyear(
         Default values for missing data
     renewable_carriers: list
         List of renewable carriers in the network
+    options : dict
+        Sector configuration options. Used to check if biomass sector is enabled.
     """
     logger.debug(f"Adding power capacities installed before {baseyear}")
 
@@ -345,6 +348,14 @@ def add_power_capacities_installed_before_baseyear(
                 )
 
         else:
+            # If biomass sector is disabled, solid biomass buses don't exist.
+            # The plants are already represented as Generators from add_electricity.
+            # Skip adding them as Links to avoid double-counting.
+            if generator == "urban central solid biomass CHP" and not options.get(
+                "biomass", False
+            ):
+                continue
+
             bus0 = vars(spatial)[carrier[generator]].nodes
             if "EU" not in vars(spatial)[carrier[generator]].locations:
                 bus0 = bus0.intersection(capacity.index + " " + carrier[generator])
@@ -805,6 +816,7 @@ if __name__ == "__main__":
         capacity_threshold=snakemake.params.existing_capacities["threshold_capacity"],
         lifetime_values=snakemake.params.costs["fill_values"],
         renewable_carriers=renewable_carriers,
+        options=options,
     )
 
     if options["heating"]:
