@@ -129,6 +129,7 @@ def add_project_generators(
         marginal_cost = n.generators.at[source_name, "marginal_cost"]
         capital_cost = n.generators.at[source_name, "capital_cost"]
         efficiency = n.generators.at[source_name, "efficiency"]
+        build_year = baseyear
 
         # p_max_pu: time series if present in generators_t, else static scalar
         if source_name in n.generators_t.p_max_pu.columns:
@@ -139,7 +140,7 @@ def add_project_generators(
         # ------------------------------------------------------------------
         # 4.  Add the project generator
         # ------------------------------------------------------------------
-        gen_name = f"{bus} {resource_class} {carrier}-project"
+        gen_name = f"{bus} {resource_class} {carrier}-project-{baseyear}"
         if gen_name in n.generators.index:
             logger.warning(
                 "Generator '%s' already exists in the network. Skipping.", gen_name
@@ -159,6 +160,7 @@ def add_project_generators(
             capital_cost=capital_cost,
             efficiency=efficiency,
             p_max_pu=p_max_pu,
+            build_year=build_year,
         )
         logger.info(
             "Added project generator '%s': %.1f MW %s at bus '%s' "
@@ -175,7 +177,15 @@ if __name__ == "__main__":
     if "snakemake" not in dir():
         from scripts._helpers import mock_snakemake
 
-        snakemake = mock_snakemake("add_project_generators")
+        snakemake = mock_snakemake(
+            "add_project_generators",
+            run="test-project-2025-3H-1M-DE-solar-100MW",
+            opts="",
+            clusters="2",
+            configfiles="config/test/config.rmi.yaml",
+            sector_opts="",
+            planning_horizons="2025",
+        )
 
     set_scenario_config(snakemake)
     configure_logging(snakemake)
