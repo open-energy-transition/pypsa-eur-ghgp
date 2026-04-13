@@ -45,6 +45,7 @@ This document provides a rigorous, code-grounded reference for how the four main
 | `sector.electricity_distribution_grid` | `false` (override; default `true`) | constant |
 | `adjustments` H2 Electrolysis / H2 Store | `p_nom_max: 0`, `e_nom_max: 0` | constant |
 | `backcasting.enable` | `false` for 2025; `true` for earlier years | per-scenario |
+| `energy.energy_totals_year` | `min(Y, 2023)` — see §7.2 item 6 | per-scenario |
 | countries | `[DE]` (test model) | constant |
 | snapshots | March 2013, 3H resolution | constant |
 
@@ -610,6 +611,37 @@ With `sector.biomass: false` and `biomass` included in the `pypsa_eur.Generator`
 
 This has been fixed in the GHGP codebase (see `pypsa-eur-code-modifications.instructions.md` §3): a guard in `add_power_capacities_installed_before_baseyear()` skips the biomass CHP Links when `options["biomass"]` is `False`. Biomass plants are therefore represented exclusively as the PPM Generators, symmetrically to other conventional technologies.
 
+### 5.4 Nuclear — double-representation in myopic mode
+
+Nuclear powerplants follow the **same two-pipeline problem** as biomass, but for a different structural reason.
+
+**Pipeline**:
+```
+scripts/add_electricity.py (attach_conventional_generators):
+  PPM "Nuclear" → Generator, carrier="nuclear",
+                  p_nom [MW_el], marginal_cost from PPM (fuel+VOM included)
+
+scripts/add_existing_baseyear.py (add_power_capacities_installed_before_baseyear):
+  same PPM plants → Link, carrier="nuclear",
+                    p_nom [MW_fuel], bus0="EU uranium"
+```
+
+The `"EU uranium"` bus is created by `prepare_sector_network.py` → `add_carrier_buses()`, but **without** an energy supply `Generator`:
+
+```python
+fossils = ["coal", "gas", "oil", "lignite"]   # uranium is NOT here
+# → "EU uranium" bus gets only a Store(e_cyclic=True), no inflow Generator
+```
+
+Because the uranium `Store` is `e_cyclic=True` with no inflow, its stored energy is forced to zero at all times. Every nuclear Link is therefore permanently idle (`p0 ≈ 0`). The PPM Generator is the only feasible path and dispatches normally.
+
+**Observed impact** (FR 2030, 39 clusters):
+- Generator `p_nom_opt = 52,240 MW`, avg dispatch = 29,487 MW ✅
+- Link `p_nom_el = 48,620 MW`, avg dispatch ≈ 10⁻⁸ MW (numerical noise) ❌
+- Installed capacity statistics doubled; dispatch and costs unaffected.
+
+**Fix** (see `pypsa-eur-code-modifications.instructions.md` §4): a `continue` guard in `add_power_capacities_installed_before_baseyear()` skips nuclear Links unconditionally (no config switch needed). Nuclear plants are therefore represented exclusively as PPM Generators.
+
 ### 5.4 `conventional_generation` Links in Sector Network
 
 Default: `sector.conventional_generation: {OCGT: gas, CCGT: gas}`.
@@ -852,6 +884,24 @@ existing_capacities:
   - 2030
   # (skip the "- Y" line if Y = 2025, since 2025 is already in the list)
 
+energy:
+  energy_totals_year: <min(Y, 2023)>   # ← 6. statistical energy data reference year
+  # Two constraints apply simultaneously:
+  #
+  # (a) ValueError constraint: build_central_heating_temperature_profiles raises
+  #     ValueError if planning_horizons[0] < energy_totals_year → requires energy_totals_year ≤ Y.
+  #
+  # (b) Data availability constraint: only jrc_idees/archive/2023-v1 is downloaded for
+  #     the GHGP project → max usable year is 2023. JRC IDEES does not publish data
+  #     for years beyond ~2 years before release; no 2024/2025 data exists.
+  #
+  # Combined rule: energy_totals_year = min(Y, 2023)
+  #   Y ∈ {2020, 2021, 2022}: use Y (constraint (a) forces it; 2023 default would crash)
+  #   Y ∈ {2023, 2024, 2025}: use 2023 (latest available; constraint (a) satisfied since Y ≥ 2023)
+  #
+  # In a fully general model, the ideal value would be Y (best match to backcasting year).
+  # The 2023 cap is a GHGP-project-specific limitation from the downloaded dataset.
+
 biomass:
   share_unsustainable_use_retained:
     Y: <value>   # ← 6. required for non-milestone years only (i.e., Y ∉ {2020, 2025, 2030, 2035, 2040, 2045, 2050})
@@ -1037,6 +1087,7 @@ The following settings from `config.default.yaml` do not need to be overridden a
 | `conventional.dynamic_fuel_price` | `add_electricity` | `add_electricity.py` | ~1370 | `false` → static marginal_cost from processed CSV; `true` → hourly marginal_cost from `monthly_fuel_price.csv` |
 | `custom_costs.csv` `fuel` param | `process_cost_data` | `process_cost_data.py` | 178-183 | Raw attr override: sets `gas.fuel` → auto-propagates to OCGT/CCGT → recomputes `marginal_cost = VOM + fuel/efficiency` |
 | `custom_costs.csv` `marginal_cost` param | `process_cost_data` | `process_cost_data.py` | Stage 2 | Prepared attr override: directly sets final `marginal_cost`, bypasses computation |
+| `energy.energy_totals_year` | `build_central_heating_temperature_profiles`, `build_energy_totals`, `build_transport_demand`, `build_district_heat_share` | multiple | — | Reference year for JRC IDEES / Eurostat statistical data. Two constraints: (a) must be ≤ `planning_horizons[0]` (ValueError otherwise); (b) must be ≤ max available in downloaded dataset (2023 for GHGP). Combined rule: `min(Y, 2023)`. For Y < 2023: set to Y (constraint a forces it). For Y ≥ 2023: set to 2023 (data availability cap). |
 | `biomass.share_unsustainable_use_retained` | `build_biomass_potentials` | `build_biomass_potentials.py` | 299 | `.get(investment_year)` — returns None for non-milestone years → must add explicit key Y in config |
 | `biomass.share_sustainable_potential_available` | `build_biomass_potentials` | `build_biomass_potentials.py` | 327 | `.get(investment_year)` — same unsafe lookup — must add explicit key Y in config |
 

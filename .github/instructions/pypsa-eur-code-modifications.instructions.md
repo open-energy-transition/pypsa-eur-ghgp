@@ -195,3 +195,74 @@ When `sector.biomass: true`, `options["biomass"]` is `True`, the guard is not tr
 - The fix is **backward-compatible**: the function signature has `options: dict` as a required parameter. All existing call sites in the codebase that use `sector.biomass: true` pass `options` (now made explicit) and are unaffected.
 - The double-counting and free-fuel issues were silent: PyPSA did not warn about the phantom buses. The only observable symptom was anomalously high biomass dispatch and incorrect installed capacity totals.
 - The `continue` guard is placed **before** the `bus0` computation and phantom bus creation block, so when `sector.biomass: false` no spurious buses are added to the network at all.
+
+---
+
+## 4. Nuclear double-representation in myopic mode
+
+### Background
+
+Like biomass, nuclear powerplants flow through two separate pipelines in myopic mode:
+
+1. **`add_electricity.py`** (`attach_conventional_generators()`): PPM `"Nuclear"` fueltype → `Generator` with `carrier="nuclear"`, `p_nom` in MW_el, `marginal_cost` from PPM (includes fuel + VOM, historically calibrated).
+2. **`add_existing_baseyear.py`** (`add_power_capacities_installed_before_baseyear()`): same PPM plants → `Link` with `carrier="nuclear"`, `p_nom` in MW_fuel, `bus0 = "EU uranium"`.
+
+In a fully sector-coupled network (e.g., the default PyPSA-Eur run with `biomass: true`, `gas_network: true`), `add_carrier_buses()` in `prepare_sector_network.py` adds a `Generator` component to each fuel bus for the fossil fuels list:
+
+```python
+fossils = ["coal", "gas", "oil", "lignite"]  # uranium is NOT in this list
+```
+
+Because uranium is absent from `fossils`, the `"EU uranium"` bus receives only a `Store` with `e_cyclic=True` — no energy inflow. The Links added by `add_existing_baseyear.py` therefore have a `bus0` that is always energy-constrained to zero, making them permanently idle. The PPM `Generator` is the only feasible nuclear representation and wins in the dispatch.
+
+### Bug
+
+The bug (present in both the GHGP project config and in the upstream `config.default.yaml`) is that `nuclear` is included in `pypsa_eur.Generator`. This means `remove_elec_base_techs()` keeps the PPM Generators. At the same time, `add_existing_baseyear.py` unconditionally creates nuclear Links. The result is two components representing the same physical plants:
+
+- **Generator**: `p_nom = X MW_el`, `marginal_cost ≈ 14 €/MWh_el` (fuel + VOM from PPM) → **dispatches normally**.
+- **Link**: `p_nom = X/η MW_fuel`, `marginal_cost ≈ 1.2 €/MWh_fuel` (VOM only; fuel path blocked because `EU uranium` has no supply) → **dispatch = 0**.
+
+E.g., Google-go project, measured for France (2030 EU run, 39 clusters, FR):
+- Generator `p_nom_opt = 52,240 MW`, average dispatch = 29,487 MW
+- Link `p_nom_el = 48,620 MW`, average dispatch ≈ 1×10⁻⁸ MW (numerical noise)
+
+**Impact**: `p_nom` statistics (installed capacity) are approximately doubled; actual dispatch and costs are correctly handled through the Generator. The Links are numerically inert but pollute capacity summaries.
+
+### Fix
+
+Added a `continue` guard in `add_power_capacities_installed_before_baseyear()` identical in structure to the biomass guard:
+
+```python
+# scripts/add_existing_baseyear.py
+# in the else branch of the generator loop, after the biomass guard:
+if generator == "nuclear":
+    continue  # nuclear already in network as Generator; uranium bus has no supply
+```
+
+### Affected files and locations
+
+| File | Change |
+|---|---|
+| `scripts/add_existing_baseyear.py` | Added `continue` guard in `add_power_capacities_installed_before_baseyear()` skipping nuclear Links unconditionally |
+
+### Why the Links are always dead (root cause detail)
+
+`add_carrier_buses()` is called from `prepare_sector_network.py` and adds a fuel `Generator` only for:
+
+```python
+fossils = ["coal", "gas", "oil", "lignite"]
+```
+
+For each carrier in `fossils`, it adds a `Generator` at the EU-level supply bus. `uranium` is not in this list. The `"EU uranium"` bus therefore contains only:
+
+```
+Store(name="EU uranium", e_cyclic=True, e_nom=∞, e_nom_extendable=False, marginal_cost=0)
+```
+
+An `e_cyclic=True` Store with no inflow can accumulate no energy: both `e_initial = 0` and `e_final = 0`. Any Link drawing from this bus is forced to `p0 = 0` by the energy balance constraint. The optimizer does not raise an error; it simply optimises around the constraint, relying entirely on the PPM Generator.
+
+### Notes
+
+- The bug exists in upstream PyPSA-Eur as well (confirmed in `config.default.yaml`). Fixing it upstream would require either adding uranium to `add_carrier_buses()` fossils list or removing nuclear from `pypsa_eur.Generator` in the default config. Neither is done here; only the GHGP script is patched.
+- The guard is placed unconditionally (no `options` parameter needed), unlike the biomass guard which checks `options["biomass"]`. Nuclear is always double-represented in the current pipeline regardless of any config switch; the fix is therefore unconditional.
+- Removing the nuclear Links does not change dispatch results or costs — the Links were always idle. Only installed capacity aggregations (`p_nom` statistics) are corrected.

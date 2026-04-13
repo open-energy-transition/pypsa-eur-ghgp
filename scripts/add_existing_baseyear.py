@@ -356,6 +356,16 @@ def add_power_capacities_installed_before_baseyear(
             ):
                 continue
 
+            # Nuclear is modelled as a Generator from PPM (via add_electricity /
+            # attach_conventional_generators). The EU uranium bus exists but has no
+            # supply Generator (add_carrier_buses only adds one for fossil fuels).
+            # Adding a Link here would therefore create a dead component (dispatch = 0
+            # because the uranium bus is e_cyclic with no inflow) while the Generator
+            # from PPM already provides the correct capacity and marginal cost.
+            # Skip to avoid double-counting in p_nom statistics.
+            if generator == "nuclear":
+                continue
+
             bus0 = vars(spatial)[carrier[generator]].nodes
             if "EU" not in vars(spatial)[carrier[generator]].locations:
                 bus0 = bus0.intersection(capacity.index + " " + carrier[generator])
