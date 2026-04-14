@@ -109,7 +109,7 @@ rule add_project_generators:
         "Adding project generators for {wildcards.clusters} clusters, "
         "{wildcards.planning_horizons} planning horizons"
     params:
-        project=config_provider("project", default={"enable": False, "file": ""}),
+        project=config_provider("backcasting", "project", default={"enable": False, "file": ""}),
         baseyear=config_provider("scenario", "planning_horizons", 0),
     input:
         network=resources(
@@ -149,7 +149,7 @@ rule solve_sector_network_myopic:
             resources(
                 f"networks/base_s_{w.clusters}_{w.opts}_{w.sector_opts}_{w.planning_horizons}_brownfield_project.nc"
             )
-            if config_provider("project", "enable", default=False)(w)
+            if config_provider("backcasting", "project", "enable", default=False)(w)
             else
             resources(
                 f"networks/base_s_{w.clusters}_{w.opts}_{w.sector_opts}_{w.planning_horizons}_brownfield.nc"

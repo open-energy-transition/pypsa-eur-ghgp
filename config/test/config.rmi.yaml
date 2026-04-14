@@ -57,16 +57,14 @@ snapshots:
   end: "2013-04-01"
   inclusive: left
 
-backcasting: # needed for renaming costs data costs_{year_costs}.csv into costs_{year_back}.csv
-  enable: false
-  year_back: 2024
+backcasting: # costs_{year_costs}.csv is copied to costs_{planning_horizons}.csv for non-milestone years
+  enable: true
   year_costs: 2025
-
-# docs: project scenario — additional renewable energy project injected after add_existing_baseyear
-# Overridden per scenario in scenarios.rmi.yaml (enable: true for project scenarios)
-project:
-  enable: false
-  file: data/project_generators.csv
+  # docs: project scenario — additional renewable energy project injected after add_existing_baseyear
+  # Overridden per scenario in scenarios.rmi.yaml (enable: true for project scenarios)
+  project:
+    enable: false
+    file: data/project_generators.csv
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#electricity
 electricity:

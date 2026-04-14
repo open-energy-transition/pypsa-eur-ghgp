@@ -2,47 +2,68 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Interactive runner for GHGP backcasting scenarios.
+"""
+Interactive runner for GHGP backcasting scenarios.
 
-Usage (from the repo root):
-    python run/backcasting_run.py
+Usage (from the repository root):
+        python run/backcasting_run.py
 
-The script reads available scenarios from config/test/scenarios.rmi.yaml,
-lets the user select one or more scenarios (by year or name), and runs
+This script reads available scenarios from config/test/scenarios.rmi.yaml,
+allows the user to select one or more scenarios (by year or name), and runs
 `snakemake solve_sector_networks` for each using:
 
-    snakemake --configfile BASE_CONFIG --config 'run={name: <scenario>}'
+        snakemake --configfile BASE_CONFIG --config 'run={name: <scenario>}'
 
-so that Snakemake performs all config merging natively — scenarios.enable
-stays true, dynamic_getter is used, and metadata from prior direct runs is
-always recognised as up-to-date.
+This ensures that Snakemake performs all config merging natively—
+scenarios.enable remains true, dynamic_getter is used, and metadata from prior direct runs is always recognized as up-to-date.
 
 Resource sharing
 ----------------
-`data/` is always shared (static datasets, never written by snakemake).
-`resources/` uses `policy: false` — each scenario has its own subfolder
-`resources/{scenario_name}/`. Using `policy: "base"` is not possible in
-myopic mode (path mismatch between producer and consumer of costs_processed.csv).
+- The `data/` directory is always shared (contains static datasets, never written by Snakemake).
+- The `resources/` directory uses `policy: false`—each scenario has its own subfolder `resources/{scenario_name}/`.
+    Using `policy: "base"` is not possible in myopic mode (due to path mismatches between producer and consumer of costs_processed.csv).
 
-However, many resource files do NOT depend on the backcasting year and are
-identical across all scenarios. To avoid redundant computation, before running
-scenario N>1 this script creates **symlinks** in `resources/{scenario_N}/`
-pointing to the already-computed files of the first completed reference scenario.
-Snakemake sees the symlinked outputs as already produced and skips those rules.
+Two symlink strategies are applied automatically:
 
-Year-independent files (safely symlinked):
-  - profile_{clusters}_{tech}.nc         renewable capacity factors (cutout-based)
-  - availability_matrix_{clusters}_{tech}.nc  exclusion zones (geographic)
-  - regions_*.geojson / *_shapes.geojson geographic shapes
-  - networks/base*.nc                    OSM network before adding electricity
-  - busmap, linemap, pop_layout, temp profiles, heat profiles, etc.
+1. Baseline → baseline (cross-year): symlink only year-INDEPENDENT files.
+     Many resource files (cutout profiles, geographic shapes, OSM network,
+     busmap, etc.) do not depend on the backcasting year and are identical
+     across all baseline scenarios. The reference is REFERENCE_SCENARIO
+     (test-baseline-2025-3H-1M-DE).
 
-Year-dependent files (always recomputed, never symlinked):
-  - electricity_demand.csv / electricity_demand_base_s.nc  → load.fixed_year
-  - powerplants_s_{clusters}.csv                           → powerplants_filter
-  - costs_{year}_processed.csv                             → year in filename
-  - networks/base_s_{clusters}_elec*.nc                    → depends on above
-  - any file matching _20XX in its name                    → year in filename
+     Year-independent files (safe to symlink):
+         - profile_{clusters}_{tech}.nc
+         - availability_matrix_{clusters}_{tech}.nc
+         - regions_*.geojson / *_shapes.geojson
+         - networks/base*.nc   (OSM network, before electricity)
+         - busmap, linemap, pop_layout, temperature profiles, heat profiles, etc.
+
+     Year-dependent files (always recomputed, never symlinked cross-year):
+         - electricity_demand.csv / electricity_demand_base_s.nc  (depends on load.fixed_year)
+         - powerplants_s_{clusters}.csv                           (depends on powerplants_filter)
+         - costs_{year}_processed.csv                             (year in filename)
+         - networks/base_s_{clusters}_elec*.nc                    (depends on above)
+         - any file matching _20XX in its name                    (year in filename)
+         - pop_weighted_{energy,heat}_totals_s_{c}.csv            (depends on energy.energy_totals_year)
+         - shipping_demand_s_{c}.csv                              (depends on energy.energy_totals_year)
+         - transport_demand_s_{c}.csv / transport_data_s_{c}.csv  (depends on energy.energy_totals_year)
+         - avail_profile_s_{c}.csv / dsm_profile_s_{c}.csv        (depends on energy.energy_totals_year)
+
+2. Baseline → project (same year): symlink ALL resource files.
+     A project scenario (e.g. test-project-2024-3H-1M-DE-solar-100MW) shares
+     every config key with its same-year baseline (test-baseline-2024-3H-1M-DE):
+     planning_horizons, powerplants_filter, fixed_year, costs.year,
+     energy_totals_year, biomass, existing_capacities. Therefore, ALL resources
+     up to and including *_brownfield.nc are identical. Only two rules need
+     to run for a project scenario:
+         - add_project_generators  (produces *_brownfield_project.nc)
+         - solve_sector_network_myopic
+     The file *_brownfield_project.nc is excluded from the symlinks (it is the
+     output that add_project_generators must create).
+
+     Detection is automatic from the scenario name: if "project" is in the name,
+     the script extracts the year and looks for the matching baseline in the
+     scenarios list. No CLI flag is needed.
 """
 
 import os
@@ -54,16 +75,41 @@ import yaml
 BASE_CONFIG = "config/test/config.rmi.yaml"
 SCENARIOS_FILE = "config/test/scenarios.rmi.yaml"
 SNAKEMAKE_TARGET = "solve_sector_networks"
+# Always use the 2025 baseline as the symlink reference for shared resources.
+# Its power-plant fleet, cutout-derived profiles, and geographic shapes are
+# identical to those of the project scenario and a safe superset of the 2024
+# scenario. The 2020 baseline has a different energy_totals_year (2020 vs 2023)
+# and must never be used as a reference.
+REFERENCE_SCENARIO = "test-baseline-2025-3H-1M-DE"
 
-# Matches _20XX (year 20xx) as a name segment: _2025. / _2025_ / _2025 at end
+# Matches _20XX (year 20xx) as a name segment: _2025, _2025_, or _2025 at end
 _YEAR_RE = re.compile(r"_20\d{2}([._]|$)")
+
+# Files that are filtered by energy.energy_totals_year inside each script.
+# energy_totals.csv itself contains ALL years; downstream scripts extract a
+# single year, so their outputs differ between the 2020 scenario (year=2020) and
+# the 2024/2025/project scenarios (year=2023). Never symlink these.
+_ENERGY_YEAR_PREFIXES = (
+    # build_population_weighted_energy_totals (filters energy_totals to energy_totals_year)
+    "pop_weighted_energy_totals_s_",
+    "pop_weighted_heat_totals_s_",
+    # build_shipping_demand (demand.xs(energy_totals_year, level=1))
+    "shipping_demand_s_",
+    # build_transport_demand (uses energy_totals_year throughout)
+    "transport_demand_s_",
+    "transport_data_s_",
+    "avail_profile_s_",
+    "dsm_profile_s_",
+)
 
 
 # ---------------------- Resource sharing helpers ----------------------
 
 
 def _is_year_dependent(rel_posix: str) -> bool:
-    """Return True if this resource file varies across backcasting years."""
+    """Return True if this resource file varies across backcasting years.
+    Used to determine if a file is safe to symlink between baselines of different years.
+    """
     name = Path(rel_posix).name
     # Has a year segment in the filename (e.g. costs_2025_processed.csv)
     if _YEAR_RE.search(name):
@@ -74,25 +120,66 @@ def _is_year_dependent(rel_posix: str) -> bool:
     # powerplants_s_{clusters}.csv depends on powerplants_filter
     if name.startswith("powerplants_s_") and name.endswith(".csv"):
         return True
-    # elec networks depend on powerplants + costs
+    # Electricity networks depend on powerplants and costs
     if rel_posix.startswith("networks/") and "_elec" in name:
+        return True
+    # Files filtered by energy.energy_totals_year inside the producing script.
+    # Note: energy_totals.csv itself is multi-year and year-independent; only
+    # the downstream scripts extract a single year, making their outputs vary
+    # between energy_totals_year=2020 and =2023.
+    if name.startswith(_ENERGY_YEAR_PREFIXES):
         return True
     return False
 
 
 def _find_reference_resources() -> Path | None:
-    """Return the first existing scenario resources folder, if any."""
-    resources = Path("resources")
-    if not resources.exists():
+    """Return the REFERENCE_SCENARIO resources folder if it already exists.
+    Used as the source for symlinking year-independent files across baselines.
+    """
+    ref = Path("resources") / REFERENCE_SCENARIO
+    return ref if ref.is_dir() else None
+
+
+def _is_project_scenario(scenario_name: str) -> bool:
+    """Return True if this is a project scenario (contains 'project' in the name).
+    Project scenarios require a different symlink strategy.
+    """
+    return "project" in scenario_name
+
+
+def _find_same_year_baseline(scenario_name: str, scenario_list: list[str]) -> str | None:
+    """For a project scenario, find the corresponding same-year baseline.
+
+    Extracts the first 4-digit year found in the scenario name and looks for
+    a baseline scenario containing the same year. Returns the baseline name or None.
+    """
+    m = re.search(r"(\d{4})", scenario_name)
+    if not m:
         return None
-    for d in sorted(resources.iterdir()):
-        if d.is_dir() and not d.name.startswith("."):
-            return d
+    year = m.group(1)
+    for s in scenario_list:
+        if "baseline" in s and year in s:
+            return s
     return None
 
 
-def symlink_shared_resources(reference_dir: Path, target_dir: Path) -> list[Path]:
-    """Symlink year-independent files from reference_dir into target_dir.
+def symlink_shared_resources(
+    reference_dir: Path,
+    target_dir: Path,
+    all_files: bool = False,
+) -> list[Path]:
+    """Symlink resource files from reference_dir into target_dir.
+
+    Parameters
+    ----------
+    reference_dir:
+        Folder to copy symlinks from.
+    target_dir:
+        Folder to create symlinks in.
+    all_files:
+        If False (default), skip year-dependent files (cross-year baseline strategy).
+        If True, symlink ALL files except *_brownfield_project.nc (same-year
+        baseline→project strategy).
 
     Snakemake will see the symlinked outputs as already produced and skip
     the corresponding rules, avoiding redundant computation.
@@ -104,9 +191,17 @@ def symlink_shared_resources(reference_dir: Path, target_dir: Path) -> list[Path
             continue
         rel = src.relative_to(reference_dir)
         rel_posix = rel.as_posix()
+        name = Path(rel_posix).name
 
-        if _is_year_dependent(rel_posix):
-            continue
+        if all_files:
+            # Same-year baseline→project: skip only the brownfield_project output,
+            # which add_project_generators must produce fresh for this scenario.
+            if "_brownfield_project" in name:
+                continue
+        else:
+            # Cross-year: skip year-dependent files.
+            if _is_year_dependent(rel_posix):
+                continue
 
         dst = target_dir / rel
         if dst.exists() or dst.is_symlink():
@@ -125,7 +220,7 @@ def select_scenarios(scenario_list):
     """Let the user select one or more scenarios from the list.
 
     Enter 0 or 'all' to select all available scenarios.
-    Enter a single number/name or a comma-separated list otherwise.
+    Enter a single number/name or a comma-separated list for multiple selections.
     Press Enter without input to cancel.
     """
     print("Available backcasting scenarios:")
@@ -178,7 +273,7 @@ def select_scenarios(scenario_list):
 
 
 def select_cpus():
-    """Ask how many local CPUs to use."""
+    """Ask how many local CPUs to use for Snakemake runs."""
     while True:
         cpu = input("\nHow many CPUs to use (all or a number)? ").strip().lower()
         if not cpu:
@@ -191,7 +286,7 @@ def select_cpus():
 
 
 def select_dry_run_mode() -> bool:
-    """Ask whether to do a dry-run + confirmation before each scenario."""
+    """Ask whether to do a dry-run and confirmation before each scenario."""
     while True:
         answer = input(
             "\nDry-run before each scenario? [Y/n] "
@@ -237,7 +332,7 @@ def main():
     print(f"Dry-run mode: {'enabled' if dry_run_mode else 'disabled'}")
     print("=" * 60)
 
-    # Track the first completed scenario folder to use as symlink reference
+    # Track the first completed scenario folder to use as the symlink reference
     reference_resources: Path | None = _find_reference_resources()
 
     # Run each selected scenario
@@ -261,10 +356,54 @@ def main():
             f" 'scenario={{planning_horizons: {ph}}}'"
         )
 
-        # Symlink year-independent files from the reference scenario.
-        # Then run --cleanup-metadata so Snakemake does not flag the freshly
-        # created symlinks as "incomplete" (files with no completion metadata).
-        if reference_resources is not None and reference_resources != target_resources:
+        # Symlink strategy:
+        #   - Project scenario: symlink ALL resources from the same-year baseline
+        #     (only add_project_generators + solve need to run).
+        #   - Other scenarios: symlink year-independent files from REFERENCE_SCENARIO.
+        # In both cases, run --cleanup-metadata and --touch to ensure metadata is written for symlinked files.
+        if _is_project_scenario(scenario_name):
+            # Same-year baseline → project: full symlink strategy.
+            same_year_baseline = _find_same_year_baseline(scenario_name, scenario_list)
+            baseline_resources = (
+                Path("resources") / same_year_baseline
+                if same_year_baseline
+                else None
+            )
+            if baseline_resources is not None and baseline_resources.is_dir():
+                symlinked = symlink_shared_resources(
+                    baseline_resources, target_resources, all_files=True
+                )
+                if symlinked:
+                    print(
+                        f"  Symlinked {len(symlinked)} resources (all files) from "
+                        f"same-year baseline '{same_year_baseline}' "
+                        f"→ only add_project_generators + solve will run."
+                    )
+                    files_str = " ".join(str(p) for p in symlinked)
+                    cleanup_cmd = (
+                        f"snakemake --cleanup-metadata {files_str}"
+                        f" --configfile {BASE_CONFIG} --config {config_override}"
+                    )
+                    print("  Cleaning up metadata for symlinked files...")
+                    os.system(cleanup_cmd)
+
+                    # Force metadata creation with --touch for all upstream rules
+                    # (those that produce the symlinked files)
+                    print("  Forcing metadata: snakemake --touch for all upstream rules...")
+                    touch_cmd = (
+                        f"snakemake --touch --configfile {BASE_CONFIG} --config {config_override}"
+                    )
+                    os.system(touch_cmd)
+            else:
+                if same_year_baseline:
+                    print(
+                        f"  Same-year baseline '{same_year_baseline}' not yet computed "
+                        f"— running full pipeline for project scenario."
+                    )
+                else:
+                    print("  No matching same-year baseline found — running full pipeline.")
+        elif reference_resources is not None and reference_resources != target_resources:
+            # Cross-year: symlink year-independent files from the 2025 reference.
             symlinked = symlink_shared_resources(reference_resources, target_resources)
             if symlinked:
                 print(
@@ -276,10 +415,10 @@ def main():
                     f"snakemake --cleanup-metadata {files_str}"
                     f" --configfile {BASE_CONFIG} --config {config_override}"
                 )
-                print(f"  Cleaning up metadata for symlinked files...")
+                print("  Cleaning up metadata for symlinked files...")
                 os.system(cleanup_cmd)
 
-        # Build and execute snakemake command.
+        # Build and execute the snakemake command.
         snakemake_base = (
             f"snakemake {cores_flag} {SNAKEMAKE_TARGET}"
             f" --configfile {BASE_CONFIG} --config {config_override}"
@@ -301,9 +440,13 @@ def main():
         print(f"\nRun command: {snakemake_base}\n")
         os.system(snakemake_base)
 
-        # After the first run completes, use this scenario as the symlink reference
-        # for all subsequent scenarios in this batch
-        if reference_resources is None and target_resources.exists():
+        # After the reference scenario completes, make it available as the symlink reference
+        # for the remaining scenarios in this batch.
+        if (
+            reference_resources is None
+            and scenario_name == REFERENCE_SCENARIO
+            and target_resources.exists()
+        ):
             reference_resources = target_resources
             print(f"  Set '{scenario_name}' as symlink reference for subsequent scenarios.")
 

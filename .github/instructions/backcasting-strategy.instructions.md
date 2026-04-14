@@ -38,16 +38,39 @@ This document provides a rigorous, code-grounded reference for how the four main
 | `lines.under_construction` | `zero` | constant |
 | `transmission_projects.enable` | `false` | constant |
 | `sector.biomass` | `false` (override; default `true`) | constant |
-| `pypsa_eur.Generator` | includes `biomass` (override; default omits it) | constant |
+| `pypsa_eur.Generator` | includes `biomass`, `nuclear` (override; default omits one or both) | constant |
 | `sector.methanol.biomass_to_methanol` | `false` (override; default `true`) | constant |
 | `sector.methanol.methanol_to_power.ocgt` | `false` (override; default `true`) | constant |
-| `sector.transport`, `heating`, `industry` etc. | `false` (all demand sectors disabled) | constant |
+| `sector.hydrogen_underground_storage` | `false` (override; default `true`) | constant |
+| `sector.regional_oil_demand` | `false` (override; default `true`) | constant |
+| `sector.gas_network` | `false` (override; default `true`) | constant |
+| `sector.gas_distribution_grid` | `false` (override; default `true`) | constant |
 | `sector.electricity_distribution_grid` | `false` (override; default `true`) | constant |
-| `adjustments` H2 Electrolysis / H2 Store | `p_nom_max: 0`, `e_nom_max: 0` | constant |
-| `backcasting.enable` | `false` for 2025; `true` for earlier years | per-scenario |
-| `energy.energy_totals_year` | `min(Y, 2023)` — see §7.2 item 6 | per-scenario |
-| countries | `[DE]` (test model) | constant |
-| snapshots | March 2013, 3H resolution | constant |
+| `sector.shipping` | `false` (override; default `true`) | constant |
+| `sector.aviation` | `false` (override; default `true`) | constant |
+| `sector.agriculture` | `false` (override; default `true`) | constant |
+| `sector.dac` | `false` (override; default `true`) | constant |
+| `sector.co2_network` | `false` (override; default `true`) | constant |
+| `sector.co2_spatial` | `false` (override; default `true`) | constant |
+| `sector.regional_co2_sequestration_potential.enable` | `false` (override; default `true`) | constant |
+| `sector.H2_network` | `false` (override; default `true`) | constant |
+| `sector.hydrogen_fuel_cell` | `false` (override; default `true`) | constant |
+| `sector.hydrogen_turbine` | `false` (override; default `true`) | constant |
+| `sector.SMR` | `false` (override; default `true`) | constant |
+| `sector.SMR_cc` | `false` (override; default `true`) | constant |
+| `sector.methanation` | `false` (override; default `true`) | constant |
+| `sector.transport` | `false` (override; default `true`) | constant |
+| `sector.heating` | `false` (override; default `true`) | constant |
+| `sector.industry` | `false` (override; default `true`) | constant |
+| `sector.biomass` | `false` (override; default `true`) | constant |
+| `pypsa_eur.Generator` | includes `biomass`, `nuclear` (override; default omits one or both) | constant |
+| `pypsa_eur.Link` | includes only default links | constant |
+| `pypsa_eur.StorageUnit` | includes only default storage units | constant |
+| `pypsa_eur.Store` | includes only default stores | constant |
+| `adjustments.sector.absolute.Link.H2 Electrolysis.p_nom_max` | `0.0` | constant |
+| `adjustments.sector.absolute.Store.H2 Store.e_nom_max` | `0.0` | constant |
+| `backcasting.project.enable` | `false` (override; default `true`) | constant |
+| `backcasting.project.file` | `data/project_generators.csv` | constant |
 
 ### Key architectural fact: planning_horizons[0] controls three things simultaneously
 
@@ -770,63 +793,36 @@ adjustments:
     absolute:
       Link:
         H2 Electrolysis:
-          p_nom_max: 0.0   # H2 Electrolysis always added with p_nom_extendable=True
+          p_nom_max: 0.0   # H2 Electrolysis always added unconditionally with p_nom_extendable=True
       Store:
         H2 Store:
-          e_nom_max: 0.0   # any H2 Store that may be added
+          e_nom_max: 0.0   # suppress any H2 Store that slips through flag guards
 ```
 
 ---
 
-## 6. Technology Costs and Fuel Prices
+## 6. Technology Costs: Availability and Backcasting Strategy
 
-### 6.1 Snakemake Workflow
+### 6.1 Problem: Cost File Availability for Intermediate Years
 
-```
-data/costs/archive/v0.14.0/costs_{Y}.csv   ← raw technology cost assumptions
-data/custom_costs.csv                        ← project-specific overrides (path: costs.custom_cost_fn)
-         |
-         ▼
-rule process_cost_data (rules/build_electricity.smk:632)
-  script: scripts/process_cost_data.py
-  output: resources/{RDIR}/costs_{Y}_processed.csv
-```
+The upstream PyPSA-Eur cost database (technology-data v0.14.0) provides cost files only for a fixed set of milestone years: 2020, 2025, 2030, 2035, 2040, 2045, 2050. For intermediate years (e.g., 2021–2024), no cost files are available for direct download. However, the workflow and scripts expect a cost file named `costs_{Y}.csv` for every scenario year Y.
 
-`process_cost_data.py` reads the raw cost CSV and `custom_costs.csv`, applies overrides, computes derived quantities (`capital_cost` as annualised investment, `marginal_cost = VOM + fuel/efficiency`), and writes a processed CSV. The gas fuel price is auto-propagated to OCGT and CCGT generators inside the script.
+**Solution:**
+- For any backcasting year Y without a dedicated cost file, the workflow automatically generates `costs_{Y}.csv` by copying the nearest available milestone file (typically `costs_2025.csv` for 2021–2024). This is handled by a dedicated Snakemake rule (`copy_cost_data_for_backcasting`).
+- The copied file is then processed as usual to produce `costs_{Y}_processed.csv`.
+- This approach ensures that all required cost files exist for any backcasting year, even if not present in the upstream archive.
 
-The processed file `costs_{Y}_processed.csv` is consumed by:
-- `add_electricity.py`: `marginal_cost`, `capital_cost`, `efficiency` for all generators, hydro, and storage
-- `add_existing_baseyear.py`: `lifetime`, `capital_cost` for existing plant groupings
-- `prepare_network.py`: transmission capital costs
+### 6.2 Fuel Price Backcasting
 
-### 6.2 Custom Cost Overrides (`custom_costs.csv`)
+While most cost parameters (capital costs, efficiency, lifetimes) can be safely inherited from the nearest milestone year, **fuel prices** (gas, coal, oil) vary significantly year by year and must be set correctly for each backcasting year to avoid distorting dispatch results.
 
-`data/custom_costs.csv` allows parameter overrides per technology and planning horizon without modifying the raw cost files. Each row specifies `planning_horizon`, `technology`, `parameter`, and `value`. Rows with `planning_horizon=all` apply to every year; rows with a specific year (e.g. `2024`) apply only to that wildcard.
+**Strategy:**
+- For each backcasting year Y, override the fuel price for each relevant technology in `data/custom_costs.csv`.
+- The workflow uses static annual-average prices (`conventional.dynamic_fuel_price: false`), which are sufficient given the snapshot structure.
+- All other cost parameters can remain as in the reference milestone file.
 
-Overrides fall into two categories:
-- **Raw attributes** (`fuel`, `efficiency`, `investment`, `lifetime`, `FOM`, `VOM`): applied before `marginal_cost` and `capital_cost` are computed — the correct way to set fuel prices.
-- **Prepared attributes** (`marginal_cost`, `capital_cost`): applied after computation, directly overriding the derived values.
-
-### 6.3 Conventional Generator Fuel Prices: `dynamic_fuel_price`
-
-```yaml
-conventional:
-  dynamic_fuel_price: false   # ← default used for GHGP project
-```
-
-- **`false`**: each generator gets a static `marginal_cost` from `costs_{Y}_processed.csv`. Fuel prices are set once per year via `custom_costs.csv`.
-- **`true`**: requires `resources/monthly_fuel_price.csv` (built from World Bank CMO Excel by `build_fossil_fuel_prices` rule); `add_electricity.py` assigns an hourly `marginal_cost` per snapshot.
-
-For the GHGP project `dynamic_fuel_price: false` is correct: snapshots use 2013 climate data mapped to year-Y demand levels, so a static annual-average fuel price is consistent with this approximation.
-
-### 6.4 Backcasting Recommendations for Technology Costs and Fuel Prices
-
-For backcasting to year Y, the key cost-side change is to use **historically correct fossil fuel import prices** for that year. Gas, coal, and oil prices varied significantly across 2020–2025 (notably the 2021–2022 gas price spike), and using default or future-year values would distort the dispatch of conventional generators.
-
-The recommended approach is:
-1. For each backcasting year Y, add a fuel price override row in `data/custom_costs.csv` for `technology=gas` (OCGT and CCGT inherit the gas price automatically), `technology=coal`, and `technology=oil`.
-2. Keep `conventional.dynamic_fuel_price: false` — annual-average prices are sufficient given the snapshot structure.
-3. All other cost parameters (capital costs, efficiency, lifetimes) can remain as in a reference case (e.g., `costs_2025.csv`), since the model is dispatch-only and these only affect annuity calculations used for plant groupings.
+**Summary:**
+- The combination of milestone file copying and per-year fuel price overrides ensures that the model uses historically accurate cost and fuel price data for every backcasting year, even when the upstream archive is incomplete.
 
 ---
 
@@ -1002,22 +998,31 @@ adjustments:
           e_nom_max: 0.0   # ← 17. suppress any H2 Store that slips through flag guards
 ```
 
-### 7.3 Cost File and Fuel Price Strategy
+### 7.3 Fuel Price Data Table (data/custom_costs.csv)
 
-**Cost file requirement**: `add_electricity` reads `costs_{costs.year}_processed.csv` and `add_existing_baseyear` reads `costs_{planning_horizons[0]}_processed.csv`. Both must point to a valid processed cost file.
+The following rows are used in `data/custom_costs.csv` to set annual-average fuel prices for each backcasting year:
 
-The upstream `technology-data` v0.14.0 repository provides cost files only for milestone years at 5-year intervals: `costs_2020.csv`, `costs_2025.csv`, `costs_2030.csv`, …, `costs_2050.csv`. Intermediate years (2021, 2022, 2023, 2024) do not exist in the archive and must be created manually.
-
-**Solution**: copy the nearest milestone year (`costs_2025.csv`) to `costs_Y.csv` for each required intermediate year Y. For the GHGP project (dispatch-only, no capacity expansion), cost assumptions primarily affect `marginal_cost` calculations and `efficiency` values. Since conventional generator efficiencies do not vary significantly between 2020 and 2025, this approximation is acceptable. Fuel prices — which vary substantially — are corrected via `custom_costs.csv` overrides.
-
-**Fuel price backcasting strategy**: The `marginal_cost` of conventional generators (gas OCGT/CCGT, coal, lignite, oil, biomass) depends critically on `fuel` prices, which vary significantly across years 2020–2025 (e.g., the European gas price spike in 2021–2022). Since `dynamic_fuel_price: false` is used, a single annual-average fuel price for year Y must be set.
-
-The recommended approach is to override the `fuel` parameter in `data/custom_costs.csv` for each backcasting year with one row per `technology` per year. This is a **raw attribute** override (Stage 1 in `process_cost_data.py`), so the correct `marginal_cost = VOM + fuel/efficiency` is automatically recomputed. The actual values to use and instructions for deriving them from the World Bank CMO data are documented in Section 8.
-
-**Key rules**:
-1. For `technology=gas`: OCGT and CCGT inherit the price automatically via `costs.at["OCGT", "fuel"] = costs.at["gas", "fuel"]` (lines 178-179 of `process_cost_data.py`). Do not add explicit OCGT/CCGT rows — they would be overwritten. For `technology=coal` and `technology=oil`: there is no auto-propagation, so rows must be added directly.
-2. `lignite` is domestic (not in World Bank CMO) — use a fixed assumption (~1–3 EUR/MWh_th) with `planning_horizon=all`.
-3. The `planning_horizon` column must be a **string** matching `str(snakemake.wildcards.planning_horizons)`. The CSV is read with `dtype={"planning_horizon": "str"}`, so integer values like `2024` in the CSV are correctly matched.
+| planning_horizon | technology | parameter | value | unit | source | further description |
+|---|---|---|---|---|---|---|
+| 2020 | gas | fuel | 10.00 | EUR/MWh_th | World Bank CMO Pink Sheet (Natural gas Europe) via build_fossil_fuel_prices workflow (EUR2020 real) | Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv |
+| 2021 | gas | fuel | 41.40 | EUR/MWh_th | World Bank CMO Pink Sheet (Natural gas Europe) via build_fossil_fuel_prices workflow (EUR2020 real) | Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv |
+| 2022 | gas | fuel | 117.03 | EUR/MWh_th | World Bank CMO Pink Sheet (Natural gas Europe) via build_fossil_fuel_prices workflow (EUR2020 real) | Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv |
+| 2023 | gas | fuel | 40.40 | EUR/MWh_th | World Bank CMO Pink Sheet (Natural gas Europe) via build_fossil_fuel_prices workflow (EUR2020 real) | Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv |
+| 2024 | gas | fuel | 29.22 | EUR/MWh_th | World Bank CMO Pink Sheet (Natural gas Europe) via build_fossil_fuel_prices workflow (EUR2020 real) | Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv |
+| 2025 | gas | fuel | 29.87 | EUR/MWh_th | World Bank CMO Pink Sheet (Natural gas Europe) via build_fossil_fuel_prices workflow (EUR2020 real) | Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv |
+| 2020 | coal | fuel | 8.24 | EUR/MWh_th | World Bank CMO Pink Sheet (Coal South African) via build_fossil_fuel_prices workflow (EUR2020 real) | Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv |
+| 2021 | coal | fuel | 13.98 | EUR/MWh_th | World Bank CMO Pink Sheet (Coal South African) via build_fossil_fuel_prices workflow (EUR2020 real) | Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv |
+| 2022 | coal | fuel | 29.20 | EUR/MWh_th | World Bank CMO Pink Sheet (Coal South African) via build_fossil_fuel_prices workflow (EUR2020 real) | Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv |
+| 2023 | coal | fuel | 14.22 | EUR/MWh_th | World Bank CMO Pink Sheet (Coal South African) via build_fossil_fuel_prices workflow (EUR2020 real) | Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv |
+| 2024 | coal | fuel | 11.69 | EUR/MWh_th | World Bank CMO Pink Sheet (Coal South African) via build_fossil_fuel_prices workflow (EUR2020 real) | Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv |
+| 2025 | coal | fuel | 9.93 | EUR/MWh_th | World Bank CMO Pink Sheet (Coal South African) via build_fossil_fuel_prices workflow (EUR2020 real) | Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv |
+| 2020 | oil | fuel | 22.51 | EUR/MWh | World Bank CMO Pink Sheet (Crude oil Brent) via build_fossil_fuel_prices workflow (EUR2020 real) | Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv |
+| 2021 | oil | fuel | 33.67 | EUR/MWh | World Bank CMO Pink Sheet (Crude oil Brent) via build_fossil_fuel_prices workflow (EUR2020 real) | Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv |
+| 2022 | oil | fuel | 50.18 | EUR/MWh | World Bank CMO Pink Sheet (Crude oil Brent) via build_fossil_fuel_prices workflow (EUR2020 real) | Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv |
+| 2023 | oil | fuel | 38.96 | EUR/MWh | World Bank CMO Pink Sheet (Crude oil Brent) via build_fossil_fuel_prices workflow (EUR2020 real) | Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv |
+| 2024 | oil | fuel | 36.71 | EUR/MWh | World Bank CMO Pink Sheet (Crude oil Brent) via build_fossil_fuel_prices workflow (EUR2020 real) | Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv |
+| 2025 | oil | fuel | 29.57 | EUR/MWh | World Bank CMO Pink Sheet (Crude oil Brent) via build_fossil_fuel_prices workflow (EUR2020 real) | Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv |
+```
 
 ### 7.4 Rules Requiring Changes
 
@@ -1075,7 +1080,7 @@ The following settings from `config.default.yaml` do not need to be overridden a
 | `electricity.estimate_battery_capacities` | `add_electricity` | `add_electricity.py` | ~710 | `false` → `attach_existing_batteries()` not called |
 | `electricity.estimate_renewable_capacities` | `add_electricity` | `add_electricity.py` | 1301-1320 | **Entirely ignored in myopic mode** (skipped with log message) |
 | `sector.electricity_distribution_grid` | `prepare_sector_network` | `prepare_sector_network.py` | — | `false` → `insert_electricity_distribution_grid()` not called |
-| `sector.biomass` | `prepare_sector_network` | `prepare_sector_network.py` | 3764 | `false` (override) → `add_biomass()` not called; no `"EU solid biomass"` bus; no mandatory-dispatch ENSPRESO Generator; PPM biomass Generators preserved via `pypsa_eur.Generator` |
+| `sector.biomass` | `prepare_sector_network` | `prepare_sector_network.py` | 3764 | `false` (override) → `add_biomass()` not called; no `"EU solid biomass"` bus; no mandatory-dispatch Generator; PPM biomass Generators preserved via `pypsa_eur.Generator` |
 | `pypsa_eur.Generator` | `prepare_sector_network` | `prepare_sector_network.py` | 656 | includes `biomass` → `remove_elec_base_techs()` keeps PPM biomass Generators; default list omits `biomass` → they would be dropped otherwise |
 | `sector.methanol.biomass_to_methanol` | `prepare_sector_network` | `prepare_sector_network.py` | — | `true` (default) adds methanol investment variables → must be `false` |
 | `sector.methanol.methanol_to_power.ocgt` | `prepare_sector_network` | `prepare_sector_network.py` | — | `true` (default) adds OCGT methanol Link with `p_nom_extendable=True` → must be `false` |
