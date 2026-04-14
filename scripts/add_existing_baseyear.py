@@ -74,6 +74,7 @@ def add_existing_renewables(
     df_agg: pd.DataFrame,
     countries: list[str],
     renewable_carriers: list[str],
+    baseyear: int,
 ) -> None:
     """
     Add existing renewable capacities to conventional power plant data.
@@ -90,6 +91,10 @@ def add_existing_renewables(
         List of country codes to consider
     renewable_carriers: list
         List of renewable carriers in the network
+    baseyear : int
+        Base year for the planning horizon. Only IRENASTAT data up to and
+        including this year is used, preventing future vintages from being
+        added to historical networks.
 
     Returns
     -------
@@ -113,6 +118,10 @@ def add_existing_renewables(
             .set_index("Country")
         )
         df.columns = df.columns.astype(int)
+
+        # only include data up to baseyear — future vintages (e.g., solar-2025
+        # in a baseyear=2020 network) would otherwise be added incorrectly
+        df = df.loc[:, df.columns <= baseyear]
 
         # calculate yearly differences
         df.insert(loc=0, value=0.0, column="1999")
@@ -244,6 +253,7 @@ def add_power_capacities_installed_before_baseyear(
         n=n,
         countries=countries,
         renewable_carriers=renewable_carriers,
+        baseyear=baseyear,
     )
     # drop assets which are already phased out / decommissioned
     phased_out = df_agg[df_agg["DateOut"] < baseyear].index
@@ -388,11 +398,20 @@ def add_power_capacities_installed_before_baseyear(
                 grouping_year, generator, resource_class
             ].dropna()
 
-            # this is for the year 2020
+            # this is for the year baseyear: placeholder Links added by
+            # prepare_sector_network/add_generation() (p_nom=0) were renamed by
+            # add_build_year_to_new_assets to CARRIER-{baseyear}.
+            # Must set p_nom as well, not just p_nom_min, because with
+            # extendable_carriers: [] (backcasting / dispatch-only mode) the Links
+            # are non-extendable and p_nom=0 would prevent any dispatch.
             if not already_build.empty:
-                n.links.loc[already_build, "p_nom_min"] = capacity.loc[
+                capacity_ab = capacity.loc[
                     already_build.str.replace(name_suffix, "")
-                ].values
+                ]
+                n.links.loc[already_build, "p_nom"] = (
+                    capacity_ab.values / costs.at[generator, "efficiency"]
+                )
+                n.links.loc[already_build, "p_nom_min"] = capacity_ab.values
 
             if not new_build.empty:
                 new_capacity = capacity.loc[new_build.str.replace(name_suffix, "")]
