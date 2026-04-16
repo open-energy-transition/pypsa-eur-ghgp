@@ -996,6 +996,13 @@ adjustments:
       Store:
         H2 Store:
           e_nom_max: 0.0   # ← 17. suppress any H2 Store that slips through flag guards
+
+solving:
+  options:
+    load_shedding: true  # ← 18. allow load shedding at high marginal cost to ensure feasibility in
+                         #    dispatch-only mode. Default: false. Required because the model has no
+                         #    capacity expansion and the historical system may be infeasible for some
+                         #    snapshots (e.g., due to network constraints or missing flexibility).
 ```
 
 ### 7.3 Fuel Price Data Table (data/custom_costs.csv)
@@ -1036,32 +1043,35 @@ wildcard_constraints:
 
 automatically restricts the rule to run only for the first (and only) planning horizon. With `planning_horizons: [Y]`, it runs exclusively for year Y — correct behavior.
 
-### 7.5 Six-Year Backcasting (Multi-Year Automation)
+### 7.5 CO₂ Budget: Made Non-Binding for All Backcasting Years
 
-To run all six backcasting years in one workflow:
+`prepare_sector_network.py` calls `add_co2limit()` **unconditionally** — there is no enable/disable flag. The CO₂ budget value is resolved via `_helpers.get(co2_budget, investment_year)`, which looks up `investment_year` in the `co2_budget` dict from config and adds a `GlobalConstraint "CO2Limit"` to the network unless the resolved value is `None`.
 
-1. Create a `config/scenarios.yaml` with Snakemake scenario overrides for each year
-2. Set `run.scenarios.enable: true` in base config
-3. Each scenario overrides `planning_horizons`, `load.fixed_year`, `costs.year`, `powerplants_filter`, and `grouping_years_power` (items 1–5 above). The one-time overrides (items 6–11) should be set in the base config file, not per scenario
+`config.default.yaml` defines:
 
-The `powerplants_filter` values for each year:
+```yaml
+co2_budget:
+  2020: 0.72
+  2025: 0.648
+  2030: 0.45
+  ...
+```
 
-| Year Y | `powerplants_filter` |
-|---|---|
-| 2020 | `"(DateOut > 2020 or DateOut != DateOut) and (DateIn < 2021 or DateIn != DateIn)"` |
-| 2021 | `"(DateOut > 2021 or DateOut != DateOut) and (DateIn < 2022 or DateIn != DateIn)"` |
-| 2022 | `"(DateOut > 2022 or DateOut != DateOut) and (DateIn < 2023 or DateIn != DateIn)"` |
-| 2023 | `"(DateOut > 2023 or DateOut != DateOut) and (DateIn < 2024 or DateIn != DateIn)"` |
-| 2024 | `"(DateOut > 2024 or DateOut != DateOut) and (DateIn < 2025 or DateIn != DateIn)"` |
-| 2025 | `"(DateOut > 2025 or DateOut != DateOut) and (DateIn < 2026 or DateIn != DateIn)"` |
+These limits must be **non-binding** for all backcasting years in the GHGP project (see [039-rmi-ghgp.instructions.md](039-rmi-ghgp.instructions.md)). The project objective is to quantify the emission impact of an additional renewable energy project by comparing a baseline and a project scenario. If a binding CO₂ cap were active, the optimizer would respect it in both scenarios identically: once the cap is met, there is no further incentive to reduce emissions, and the marginal emission impact of the additional renewable would be absorbed elsewhere rather than reflected in a genuine emission difference. To preserve the causal signal between the project and system-level emissions, no binding CO₂ constraint must be imposed.
 
-### 7.6 What Remains Unchanged Across All Backcasting Years
+Set the following in `config/test/config.rmi.yaml` (once, applies to all backcasting years):
 
-The following settings from `config.default.yaml` do not need to be overridden at all:
+```yaml
+co2_budget:
+  2020: 1.0
+  2025: 1.0
+```
 
-- `foresight: myopic` — fixed for the entire project
-- Snapshot structure (`snapshots.start/end`) — simulation always runs over 2013 climate data regardless of the backcasting year
-- Number of clusters — spatial resolution kept constant across all years
+`1.0` means "emissions ≤ 100% of 1990 levels". Actual European electricity-sector emissions in 2020–2025 are well below 1990 levels, so the constraint is never binding. This approach requires no changes to the PyPSA-Eur validation schema.
+
+Only the two milestone years are needed. `_helpers.get()` interpolates linearly between keys when the investment year is not found; since all values are `1.0`, the interpolated result for 2021–2024 is also `1.0`. Note that `_helpers.get()` emits a `logger.warning` for each missing key — this is harmless but produces log noise. Adding the intermediate years explicitly suppresses those warnings.
+
+**Note on dict merging**: Snakemake merges `config.rmi.yaml` over `config.default.yaml` with a deep-merge strategy. The merged `co2_budget` dict will still contain keys for years beyond 2025 (e.g., `2030: 0.45`). This is acceptable: no backcasting scenario uses a `planning_horizons` value beyond 2025, so those keys are never resolved.
 
 ---
 
@@ -1095,131 +1105,3 @@ The following settings from `config.default.yaml` do not need to be overridden a
 | `energy.energy_totals_year` | `build_central_heating_temperature_profiles`, `build_energy_totals`, `build_transport_demand`, `build_district_heat_share` | multiple | — | Reference year for JRC IDEES / Eurostat statistical data. Two constraints: (a) must be ≤ `planning_horizons[0]` (ValueError otherwise); (b) must be ≤ max available in downloaded dataset (2023 for GHGP). Combined rule: `min(Y, 2023)`. For Y < 2023: set to Y (constraint a forces it). For Y ≥ 2023: set to 2023 (data availability cap). |
 | `biomass.share_unsustainable_use_retained` | `build_biomass_potentials` | `build_biomass_potentials.py` | 299 | `.get(investment_year)` — returns None for non-milestone years → must add explicit key Y in config |
 | `biomass.share_sustainable_potential_available` | `build_biomass_potentials` | `build_biomass_potentials.py` | 327 | `.get(investment_year)` — same unsafe lookup — must add explicit key Y in config |
-
----
-
-## 9. Backcasting-Specific Modifications
-
-This section documents all modifications made to the PyPSA-Eur codebase and data files to support backcasting. Changes fall into two categories: **Snakemake workflow modifications** (rules and scripts) and **data modifications** (input data files).
-
-### 9.1 Summary of Changes
-
-**Snakemake workflow files:**
-
-| File | Change |
-|---|---|
-| `rules/retrieve.smk` | Added `copy_cost_data_for_backcasting` rule (conditionally defined) |
-| `rules/build_electricity.smk` | Changed `process_cost_data` input from `rules.retrieve_cost_data.output["costs"]` to a plain path string |
-
-**Data files:**
-
-| File | Change |
-|---|---|
-| `data/custom_costs.csv` | Added `fuel` parameter overrides for `gas`, `coal`, and `oil` for each backcasting year 2020–2025 |
-
-### 9.2 The `copy_cost_data_for_backcasting` Rule (`retrieve.smk`)
-
-```python
-if (
-    config.get("backcasting", {}).get("enable", False)
-    and config["backcasting"].get("year_back") != config["backcasting"].get("year_costs")
-):
-    _year_back = config["backcasting"]["year_back"]
-    _year_costs = config["backcasting"]["year_costs"]
-
-    rule copy_cost_data_for_backcasting:
-        message:
-            f"Copying cost data from {_year_costs} to {_year_back} for backcasting"
-        input:
-            costs=COSTS_DATASET["folder"] + f"/costs_{_year_costs}.csv",
-        output:
-            costs=COSTS_DATASET["folder"] + f"/costs_{_year_back}.csv",
-        run:
-            copy2(input["costs"], output["costs"])
-```
-
-The rule is only registered in the DAG when `backcasting.enable: true` and `year_back ≠ year_costs`. Both input and output are **concrete paths** (no wildcards), resolved at parse time from config values.
-
-### 9.3 The `process_cost_data` Input Change (`build_electricity.smk`)
-
-The original input used a direct rule reference:
-```python
-costs=rules.retrieve_cost_data.output["costs"],  # ORIGINAL — hardwires retrieve_cost_data
-```
-
-Changed to a plain path string:
-```python
-costs=COSTS_DATASET["folder"] + "/costs_{planning_horizons}.csv",  # MODIFIED
-```
-
-This is the critical change. With a direct rule reference, Snakemake is forced to use `retrieve_cost_data` as the producer — it would try to download `costs_2024.csv` from GitHub (which returns 404). With a plain path string, Snakemake applies its standard **rule selection algorithm** to find the best producer of that path.
-
-### 9.4 Why It Works Despite `planning_horizons: [2024]`
-
-`scenario.planning_horizons: [2024]` controls only which **final targets** Snakemake expands (i.e., which solved networks to build). It does not restrict the wildcard `{planning_horizons}` to the value `2024` in intermediate rules — that wildcard is only constrained by the global `wildcard_constraints: planning_horizons=r"[0-9]{4}"` (any 4-digit year, in `Snakefile` line 61).
-
-The full chain Snakemake schedules automatically:
-
-```
-process_cost_data(planning_horizons=2024)
-  needs: data/costs/.../costs_2024.csv
-    → two candidate rules:
-        (a) retrieve_cost_data(planning_horizons=2024)  ← wildcard output
-        (b) copy_cost_data_for_backcasting              ← concrete output ✓ (wins)
-  → copy_cost_data_for_backcasting
-      needs: data/costs/.../costs_2025.csv
-        → one candidate rule:
-            retrieve_cost_data(planning_horizons=2025)  ← Snakemake deduces 2025
-                                                          by matching pattern
-                                                          costs_{planning_horizons}.csv
-                                                          against the required path
-        → downloads costs_2025.csv from GitHub ✓ (exists in technology-data v0.14.0)
-      → copies costs_2025.csv → costs_2024.csv ✓
-  → process_cost_data runs with costs_2024.csv ✓
-```
-
-**Key insight**: when Snakemake needs `costs_2025.csv` to satisfy `copy_cost_data_for_backcasting`, it instantiates `retrieve_cost_data` with `planning_horizons=2025` independently — this value is **not** taken from `scenario.planning_horizons` but is deduced by pattern-matching the required filename against the rule's output pattern `costs_{planning_horizons}.csv`. Snakemake prefers concrete outputs over wildcard outputs, which is why `copy_cost_data_for_backcasting` wins over `retrieve_cost_data(planning_horizons=2024)` in step 1.
-
----
-
-### 9.5 Fuel Price Data Modifications (`data/custom_costs.csv`)
-
-**Data source**: World Bank CMO Pink Sheet (`CMO-Historical-Data-Monthly.xlsx`), retrieved via the `retrieve_worldbank_commodity_prices` rule and processed by the `build_fossil_fuel_prices` rule. The three commodity series used are:
-
-| `technology` in `custom_costs.csv` | World Bank CMO column | Unit (original) |
-|---|---|---|
-| `gas` | `Natural gas, Europe` | USD/MMBtu |
-| `coal` | `Coal, South African **` | USD/metric ton |
-| `oil` | `Crude oil, Brent` | USD/bbl |
-
-**Processing pipeline** (`scripts/build_monthly_prices.py`):
-1. Nominal USD prices are deflated to **real EUR2020** using the IMF GDP deflator (via `pydeflate`)
-2. Unit conversion to EUR/MWh: gas × 3.41214 MMBtu/MWh, coal × 0.1433 t/MWh, oil × 0.5883 bbl/MWh
-3. A 6-month centered rolling mean is applied (`fuel_price_rolling_window: 6`)
-4. Output: `resources/monthly_fuel_price.csv`
-
-**Derivation of annual values**: annual-average prices in `custom_costs.csv` were computed as `monthly_fuel_price.csv.groupby(year).mean()` for years 2020–2025. The 6-month rolling mean does not affect annual averages for complete calendar years (the rolling mean preserves the sum over a full year).
-
-The following rows were added to `data/custom_costs.csv`:
-
-```csv
-planning_horizon,technology,parameter,value,unit,source,further description
-2020,gas,fuel,10.00,EUR/MWh_th,World Bank CMO Pink Sheet (Natural gas Europe) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
-2021,gas,fuel,41.40,EUR/MWh_th,World Bank CMO Pink Sheet (Natural gas Europe) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
-2022,gas,fuel,117.03,EUR/MWh_th,World Bank CMO Pink Sheet (Natural gas Europe) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
-2023,gas,fuel,40.40,EUR/MWh_th,World Bank CMO Pink Sheet (Natural gas Europe) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
-2024,gas,fuel,29.22,EUR/MWh_th,World Bank CMO Pink Sheet (Natural gas Europe) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
-2025,gas,fuel,29.87,EUR/MWh_th,World Bank CMO Pink Sheet (Natural gas Europe) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
-2020,coal,fuel,8.24,EUR/MWh_th,World Bank CMO Pink Sheet (Coal South African) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
-2021,coal,fuel,13.98,EUR/MWh_th,World Bank CMO Pink Sheet (Coal South African) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
-2022,coal,fuel,29.20,EUR/MWh_th,World Bank CMO Pink Sheet (Coal South African) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
-2023,coal,fuel,14.22,EUR/MWh_th,World Bank CMO Pink Sheet (Coal South African) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
-2024,coal,fuel,11.69,EUR/MWh_th,World Bank CMO Pink Sheet (Coal South African) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
-2025,coal,fuel,9.93,EUR/MWh_th,World Bank CMO Pink Sheet (Coal South African) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
-2020,oil,fuel,22.51,EUR/MWh,World Bank CMO Pink Sheet (Crude oil Brent) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
-2021,oil,fuel,33.67,EUR/MWh,World Bank CMO Pink Sheet (Crude oil Brent) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
-2022,oil,fuel,50.18,EUR/MWh,World Bank CMO Pink Sheet (Crude oil Brent) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
-2023,oil,fuel,38.96,EUR/MWh,World Bank CMO Pink Sheet (Crude oil Brent) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
-2024,oil,fuel,36.71,EUR/MWh,World Bank CMO Pink Sheet (Crude oil Brent) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
-2025,oil,fuel,29.57,EUR/MWh,World Bank CMO Pink Sheet (Crude oil Brent) via build_fossil_fuel_prices workflow (EUR2020 real),Annual average of monthly values deflated to EUR2020 using IMF GDP deflator; derived from resources/monthly_fuel_price.csv
-```

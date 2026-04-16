@@ -28,8 +28,8 @@ Two symlink strategies are applied automatically:
 1. Baseline → baseline (cross-year): symlink only year-INDEPENDENT files.
      Many resource files (cutout profiles, geographic shapes, OSM network,
      busmap, etc.) do not depend on the backcasting year and are identical
-     across all baseline scenarios. The reference is REFERENCE_SCENARIO
-     (test-baseline-2025-3H-1M-DE).
+     across all baseline scenarios. The reference is always the baseline-2025
+     scenario (detected automatically from the scenarios file).
 
      Year-independent files (safe to symlink):
          - profile_{clusters}_{tech}.nc
@@ -75,12 +75,6 @@ import yaml
 BASE_CONFIG = "config/test/config.rmi.yaml"
 SCENARIOS_FILE = "config/test/scenarios.rmi.yaml"
 SNAKEMAKE_TARGET = "solve_sector_networks"
-# Always use the 2025 baseline as the symlink reference for shared resources.
-# Its power-plant fleet, cutout-derived profiles, and geographic shapes are
-# identical to those of the project scenario and a safe superset of the 2024
-# scenario. The 2020 baseline has a different energy_totals_year (2020 vs 2023)
-# and must never be used as a reference.
-REFERENCE_SCENARIO = "test-baseline-2025-3H-1M-DE"
 
 # Matches _20XX (year 20xx) as a name segment: _2025, _2025_, or _2025 at end
 _YEAR_RE = re.compile(r"_20\d{2}([._]|$)")
@@ -104,6 +98,50 @@ _ENERGY_YEAR_PREFIXES = (
 
 
 # ---------------------- Resource sharing helpers ----------------------
+
+
+def _find_reference_scenario(scenario_list: list[str]) -> str | None:
+    """Return the baseline-2025 scenario name to use as the symlink reference.
+
+    The 2025 baseline is the unique correct choice because it maximises the set
+    of year-independent files that can be safely symlinked to other scenarios:
+
+    Year-INDEPENDENT files (identical across all backcasting years, safe to symlink):
+        - atlite cutout profiles (profile_{clusters}_{tech}.nc,
+          availability_matrix_{clusters}_{tech}.nc) — derived from a fixed
+          meteorological cutout and are not affected by the backcasting year
+        - Geographic shapes, regions, busmaps, linemaps — derived from the
+          OSM network snapshot (Feb 2026) and the clustering algorithm,
+          neither of which depends on the backcasting year
+        - Base network (networks/base*.nc) — OSM topology, year-invariant
+
+    Year-DEPENDENT files (differ across backcasting years, never symlinked):
+        - powerplants_s_{clusters}.csv — filtered by powerplants_filter (DateIn/DateOut)
+        - electricity_demand.csv / electricity_demand_base_s.nc — filtered by load.fixed_year
+        - costs_{year}_processed.csv — year encoded in filename
+        - networks/base_s_{clusters}_elec*.nc — depends on powerplants and costs
+        - IRENASTAT-derived capacities inside *_brownfield.nc — add_existing_baseyear
+          uses all IRENASTAT columns up to planning_horizons[0], so the brownfield
+          network differs between years
+        - pop_weighted_*_totals, shipping_demand, transport_* — filtered by
+          energy_totals_year (2020 for Y=2020; 2023 for Y=2021-2025)
+
+    Why 2025 specifically:
+        - It is the latest year, so its IRENASTAT snapshot is the most inclusive;
+          earlier baselines always have a strict subset of its renewable vintages
+        - energy_totals_year is capped at 2023 for Y≥2021 (JRC IDEES data
+          constraint), so 2021-2025 baselines all share the same energy_totals_year
+        - 2020 must never be used as reference: it uses energy_totals_year=2020,
+          making its pop_weighted_* and shipping_demand files incompatible with
+          all other baselines
+
+    Detection is by name: finds the first scenario containing both 'baseline'
+    and '2025', so it works regardless of prefix or temporal-resolution suffix.
+    """
+    for s in scenario_list:
+        if "baseline" in s and "2025" in s:
+            return s
+    return None
 
 
 def _is_year_dependent(rel_posix: str) -> bool:
@@ -132,11 +170,13 @@ def _is_year_dependent(rel_posix: str) -> bool:
     return False
 
 
-def _find_reference_resources() -> Path | None:
-    """Return the REFERENCE_SCENARIO resources folder if it already exists.
+def _find_reference_resources(scenario_name: str | None) -> Path | None:
+    """Return the baseline-2025 resources folder if it already exists.
     Used as the source for symlinking year-independent files across baselines.
     """
-    ref = Path("resources") / REFERENCE_SCENARIO
+    if scenario_name is None:
+        return None
+    ref = Path("resources") / scenario_name
     return ref if ref.is_dir() else None
 
 
@@ -311,6 +351,7 @@ def main():
         base_config = yaml.safe_load(f)
 
     scenario_list = list(scenarios_config.keys())
+    reference_scenario = _find_reference_scenario(scenario_list)
 
     print("=" * 60)
     print("GHGP Backcasting Run Script")
@@ -333,7 +374,7 @@ def main():
     print("=" * 60)
 
     # Track the first completed scenario folder to use as the symlink reference
-    reference_resources: Path | None = _find_reference_resources()
+    reference_resources: Path | None = _find_reference_resources(reference_scenario)
 
     # Run each selected scenario
     for scenario_name in selected_scenarios:
@@ -359,7 +400,7 @@ def main():
         # Symlink strategy:
         #   - Project scenario: symlink ALL resources from the same-year baseline
         #     (only add_project_generators + solve need to run).
-        #   - Other scenarios: symlink year-independent files from REFERENCE_SCENARIO.
+        #   - Other scenarios: symlink year-independent files from the baseline-2025 reference.
         # In both cases, run --cleanup-metadata and --touch to ensure metadata is written for symlinked files.
         if _is_project_scenario(scenario_name):
             # Same-year baseline → project: full symlink strategy.
@@ -444,7 +485,7 @@ def main():
         # for the remaining scenarios in this batch.
         if (
             reference_resources is None
-            and scenario_name == REFERENCE_SCENARIO
+            and scenario_name == reference_scenario
             and target_resources.exists()
         ):
             reference_resources = target_resources

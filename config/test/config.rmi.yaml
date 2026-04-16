@@ -23,7 +23,7 @@ run:
   prefix: ""
   name:
   #- test-baseline-2025-3H-1M-DE
-  - test-project-2025-3H-1M-DE-solar-100MW
+  - test-project-2025-3H-DE-solar-100MW
   scenarios:
     enable: true
     file: config/test/scenarios.rmi.yaml
@@ -53,9 +53,20 @@ countries:
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#snapshots
 snapshots:
-  start: "2013-03-01"
-  end: "2013-04-01"
+  start: "2013-01-01"
+  end: "2014-01-01"
   inclusive: left
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#co2_budget
+# Set to 1.0 (= 100% of 1990 levels) for all backcasting years to make the
+# CO2 constraint non-binding. Actual emissions in 2020–2025 are well below
+# 1990 levels, so the constraint never activates. This avoids distorting the
+# emission impact signal between baseline and project scenarios (see
+# .github/instructions/039-rmi-ghgp.instructions.md and section 7.7 of
+# backcasting-strategy.instructions.md).
+co2_budget:
+  2020: 1.0
+  2025: 1.0
 
 backcasting: # costs_{year_costs}.csv is copied to costs_{planning_horizons}.csv for non-milestone years
   enable: true

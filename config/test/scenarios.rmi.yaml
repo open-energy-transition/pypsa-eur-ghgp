@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: CC0-1.0
 
-test-baseline-2025-3H-1M-DE:
+test-baseline-2025-3H-DE:
   scenario:
     planning_horizons:
     - 2025
@@ -16,7 +16,7 @@ test-baseline-2025-3H-1M-DE:
   costs:
     year: 2025
 
-test-baseline-2024-3H-1M-DE:
+test-baseline-2024-3H-DE:
   scenario:
     planning_horizons:
     - 2024
@@ -72,7 +72,7 @@ test-baseline-2024-3H-1M-DE:
   backcasting:
     year_costs: 2025
 
-test-baseline-2023-3H-1M-DE:
+test-baseline-2023-3H-DE:
   scenario:
     planning_horizons:
     - 2023
@@ -120,7 +120,7 @@ test-baseline-2023-3H-1M-DE:
   backcasting:
     year_costs: 2025
 
-test-baseline-2022-3H-1M-DE:
+test-baseline-2022-3H-DE:
   scenario:
     planning_horizons:
     - 2022
@@ -168,7 +168,7 @@ test-baseline-2022-3H-1M-DE:
   backcasting:
     year_costs: 2025
 
-test-baseline-2021-3H-1M-DE:
+test-baseline-2021-3H-DE:
   scenario:
     planning_horizons:
     - 2021
@@ -216,7 +216,7 @@ test-baseline-2021-3H-1M-DE:
   backcasting:
     year_costs: 2025
 
-test-baseline-2020-3H-1M-DE:
+test-baseline-2020-3H-DE:
   scenario:
     planning_horizons:
     - 2020
@@ -245,7 +245,7 @@ test-baseline-2020-3H-1M-DE:
 #### PROJCECT SCENARIOS ####
 # Project scenario: adds a 100 MW solar generator in Germany on top of the 2025 baseline.
 
-test-project-2025-3H-1M-DE-solar-100MW:
+test-project-2025-3H-DE-solar-100MW:
 
   scenario:
     planning_horizons:
@@ -265,7 +265,7 @@ test-project-2025-3H-1M-DE-solar-100MW:
       enable: true
       file: data/project_generators.csv
 
-test-project-2024-3H-1M-DE-solar-100MW:
+test-project-2024-3H-DE-solar-100MW:
   scenario:
     planning_horizons:
     - 2024
@@ -316,7 +316,7 @@ test-project-2024-3H-1M-DE-solar-100MW:
       enable: true
       file: data/project_generators.csv
 
-test-project-2023-3H-1M-DE-solar-100MW:
+test-project-2023-3H-DE-solar-100MW:
   scenario:
     planning_horizons:
     - 2023
@@ -367,7 +367,7 @@ test-project-2023-3H-1M-DE-solar-100MW:
       enable: true
       file: data/project_generators.csv
 
-test-project-2022-3H-1M-DE-solar-100MW:
+test-project-2022-3H-DE-solar-100MW:
   scenario:
     planning_horizons:
     - 2022
@@ -418,7 +418,7 @@ test-project-2022-3H-1M-DE-solar-100MW:
       enable: true
       file: data/project_generators.csv
 
-test-project-2021-3H-1M-DE-solar-100MW:
+test-project-2021-3H-DE-solar-100MW:
   scenario:
     planning_horizons:
     - 2021
@@ -469,7 +469,7 @@ test-project-2021-3H-1M-DE-solar-100MW:
       enable: true
       file: data/project_generators.csv
 
-test-project-2020-3H-1M-DE-solar-100MW:
+test-project-2020-3H-DE-solar-100MW:
   scenario:
     planning_horizons:
     - 2020

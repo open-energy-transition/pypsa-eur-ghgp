@@ -274,3 +274,87 @@ if config.get("backcasting", {}).get("enable", False):
 | `retrieve_cost_data` | remote archive | `costs_{planning_horizons}.csv` | fallback/default |
 
 ---
+
+## 6. IRENASTAT future vintages incorrectly added in `add_existing_renewables()`
+
+### Background
+
+`add_existing_renewables()` in `add_existing_baseyear.py` is responsible for converting IRENASTAT aggregate capacity statistics into per-generator vintage data for each renewable carrier (solar, onwind, offwind-ac). It does this by:
+
+1. Loading the IRENASTAT time series of cumulative installed capacity per country and technology.
+2. Computing year-on-year differences to obtain annual additions (`diff(axis=1)`).
+3. Assigning each annual addition to a `grouping_year` bin matching those used for conventional plants.
+4. Adding the resulting entries to `df_agg` so they are processed together with PPM plants downstream.
+
+### Bug
+
+The function iterated over **all columns of the IRENASTAT DataFrame**, including years beyond the `baseyear`. No upper-bound filter was applied before computing the `diff()`.
+
+As a result, with `baseyear=2020`, IRENASTAT data for years 2021–2030 (and beyond) was included in the capacity additions. For example, a solar vintage corresponding to year 2025 (cumulative additions between 2024 and 2025) would:
+
+- Have `DateIn=2025`, `DateOut=2054` (25yr lifetime).
+- Pass the `DateOut < baseyear` phaseout check (2054 > 2020).
+- Pass the `DateIn > max(grouping_years)` check (2025 ≤ 2030 if `grouping_years_power` extended to 2030).
+- Get assigned `grouping_year=2025` → added as `solar-2025` to the 2020 network.
+
+This bug was not caught in upstream PyPSA-Eur because the standard workflow uses future planning horizons (e.g., `baseyear=2030`), where all IRENASTAT data is already ≤ baseyear by definition. It only manifests in backcasting runs where `baseyear` is in the recent past.
+
+**Observed symptom:** `solar-2025: 19.09 GW` appearing in the installed capacity of the `baseyear=2020` network.
+
+### Fix
+
+Added a `baseyear: int` parameter to `add_existing_renewables()` and applied a column filter immediately after casting column names to integers, before the `diff()`:
+
+**Original code:**
+```python
+def add_existing_renewables(
+    n, costs, df_agg, countries, renewable_carriers,
+) -> None:
+    ...
+    df.columns = df.columns.astype(int)
+    # calculate yearly differences
+    df.insert(loc=0, value=0.0, column="1999")
+    df = df.diff(axis=1).drop("1999", axis=1).clip(lower=0)
+```
+
+**Fixed code:**
+```python
+def add_existing_renewables(
+    n, costs, df_agg, countries, renewable_carriers,
+    baseyear: int,          # ← NEW parameter
+) -> None:
+    ...
+    df.columns = df.columns.astype(int)
+
+    # only include data up to baseyear — future vintages (e.g., solar-2025
+    # in a baseyear=2020 network) would otherwise be added incorrectly
+    df = df.loc[:, df.columns <= baseyear]
+
+    # calculate yearly differences
+    df.insert(loc=0, value=0.0, column="1999")
+    df = df.diff(axis=1).drop("1999", axis=1).clip(lower=0)
+```
+
+The call site in `add_power_capacities_installed_before_baseyear()` was updated to pass `baseyear=baseyear`:
+
+```python
+add_existing_renewables(
+    df_agg=df_agg, costs=costs, n=n,
+    countries=countries, renewable_carriers=renewable_carriers,
+    baseyear=baseyear,   # ← NEW
+)
+```
+
+### Affected files and locations
+
+| File | Location | Change |
+|---|---|---|
+| `scripts/add_existing_baseyear.py` | `add_existing_renewables()` signature | Added `baseyear: int` parameter |
+| `scripts/add_existing_baseyear.py` | `add_existing_renewables()`, after `df.columns = df.columns.astype(int)` | Added `df = df.loc[:, df.columns <= baseyear]` |
+| `scripts/add_existing_baseyear.py` | Call site in `add_power_capacities_installed_before_baseyear()` | Added `baseyear=baseyear` keyword argument |
+
+### Notes
+
+- The fix is backward-compatible: for standard future-horizon runs (e.g., `baseyear=2030`), `df.columns <= 2030` retains all columns that were previously included, so the filter is a no-op.
+- The fix applies independently to each carrier (solar, onwind, offwind-ac) since the filter is inside the `for carrier, tech in tech_map.items()` loop.
+
