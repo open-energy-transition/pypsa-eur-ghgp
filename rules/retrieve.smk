@@ -457,6 +457,24 @@ if (COSTS_DATASET := dataset_version("costs"))["source"] in [
             copy2(input["costs"], output["costs"])
 
 
+if config.get("backcasting", {}).get("enable", False):
+    _year_costs = config["backcasting"]["year_costs"]
+
+    rule copy_cost_data_for_backcasting:
+        message:
+            "Copying cost data from {_year_costs} to {wildcards.planning_horizons} for backcasting"
+        input:
+            costs=COSTS_DATASET["folder"] + f"/costs_{_year_costs}.csv",
+        output:
+            costs=COSTS_DATASET["folder"] + "/costs_{planning_horizons}.csv",
+        wildcard_constraints:
+            planning_horizons=f"(?!{_year_costs}$)\\d+",
+        run:
+            copy2(input["costs"], output["costs"])
+
+    ruleorder: copy_cost_data_for_backcasting > retrieve_cost_data
+
+
 if (POWERPLANTS_DATASET := dataset_version("powerplants"))["source"] in [
     "primary",
     "archive",

@@ -635,7 +635,7 @@ rule process_cost_data:
         max_hours=config_provider("electricity", "max_hours"),
     input:
         network=resources("networks/base_s.nc"),
-        costs=rules.retrieve_cost_data.output["costs"],
+        costs=COSTS_DATASET["folder"] + "/costs_{planning_horizons}.csv",
         custom_costs=config_provider("costs", "custom_cost_fn"),
     output:
         resources("costs_{planning_horizons}_processed.csv"),

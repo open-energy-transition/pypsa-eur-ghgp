@@ -74,6 +74,7 @@ def add_existing_renewables(
     df_agg: pd.DataFrame,
     countries: list[str],
     renewable_carriers: list[str],
+    baseyear: int,
 ) -> None:
     """
     Add existing renewable capacities to conventional power plant data.
@@ -90,6 +91,10 @@ def add_existing_renewables(
         List of country codes to consider
     renewable_carriers: list
         List of renewable carriers in the network
+    baseyear : int
+        Base year for the planning horizon. Only IRENASTAT data up to and
+        including this year is used, preventing future vintages from being
+        added to historical networks.
 
     Returns
     -------
@@ -113,6 +118,10 @@ def add_existing_renewables(
             .set_index("Country")
         )
         df.columns = df.columns.astype(int)
+
+        # only include data up to baseyear — future vintages (e.g., solar-2025
+        # in a baseyear=2020 network) would otherwise be added incorrectly
+        df = df.loc[:, df.columns <= baseyear]
 
         # calculate yearly differences
         df.insert(loc=0, value=0.0, column="1999")
@@ -160,6 +169,7 @@ def add_power_capacities_installed_before_baseyear(
     capacity_threshold: float,
     lifetime_values: dict[str, float],
     renewable_carriers: list[str],
+    options: dict,
 ) -> None:
     """
     Add power generation capacities installed before base year.
@@ -184,6 +194,8 @@ def add_power_capacities_installed_before_baseyear(
         Default values for missing data
     renewable_carriers: list
         List of renewable carriers in the network
+    options : dict
+        Sector configuration options. Used to check if biomass sector is enabled.
     """
     logger.debug(f"Adding power capacities installed before {baseyear}")
 
@@ -241,6 +253,7 @@ def add_power_capacities_installed_before_baseyear(
         n=n,
         countries=countries,
         renewable_carriers=renewable_carriers,
+        baseyear=baseyear,
     )
     # drop assets which are already phased out / decommissioned
     phased_out = df_agg[df_agg["DateOut"] < baseyear].index
@@ -345,6 +358,24 @@ def add_power_capacities_installed_before_baseyear(
                 )
 
         else:
+            # If biomass sector is disabled, solid biomass buses don't exist.
+            # The plants are already represented as Generators from add_electricity.
+            # Skip adding them as Links to avoid double-counting.
+            if generator == "urban central solid biomass CHP" and not options.get(
+                "biomass", False
+            ):
+                continue
+
+            # Nuclear is modelled as a Generator from PPM (via add_electricity /
+            # attach_conventional_generators). The EU uranium bus exists but has no
+            # supply Generator (add_carrier_buses only adds one for fossil fuels).
+            # Adding a Link here would therefore create a dead component (dispatch = 0
+            # because the uranium bus is e_cyclic with no inflow) while the Generator
+            # from PPM already provides the correct capacity and marginal cost.
+            # Skip to avoid double-counting in p_nom statistics.
+            if generator == "nuclear":
+                continue
+
             bus0 = vars(spatial)[carrier[generator]].nodes
             if "EU" not in vars(spatial)[carrier[generator]].locations:
                 bus0 = bus0.intersection(capacity.index + " " + carrier[generator])
@@ -367,11 +398,20 @@ def add_power_capacities_installed_before_baseyear(
                 grouping_year, generator, resource_class
             ].dropna()
 
-            # this is for the year 2020
+            # this is for the year baseyear: placeholder Links added by
+            # prepare_sector_network/add_generation() (p_nom=0) were renamed by
+            # add_build_year_to_new_assets to CARRIER-{baseyear}.
+            # Must set p_nom as well, not just p_nom_min, because with
+            # extendable_carriers: [] (backcasting / dispatch-only mode) the Links
+            # are non-extendable and p_nom=0 would prevent any dispatch.
             if not already_build.empty:
-                n.links.loc[already_build, "p_nom_min"] = capacity.loc[
+                capacity_ab = capacity.loc[
                     already_build.str.replace(name_suffix, "")
-                ].values
+                ]
+                n.links.loc[already_build, "p_nom"] = (
+                    capacity_ab.values / costs.at[generator, "efficiency"]
+                )
+                n.links.loc[already_build, "p_nom_min"] = capacity_ab.values
 
             if not new_build.empty:
                 new_capacity = capacity.loc[new_build.str.replace(name_suffix, "")]
@@ -417,7 +457,8 @@ def add_power_capacities_installed_before_baseyear(
                         p_nom=new_capacity / costs.at[key, "efficiency"],
                         capital_cost=costs.at[key, "capital_cost"]
                         * costs.at[key, "efficiency"],
-                        marginal_cost=costs.at[key, "VOM"],
+                        marginal_cost=costs.at[key, "efficiency"]
+                        * costs.at[key, "VOM"],  # NB: VOM is per MWel
                         efficiency=costs.at[key, "efficiency"],
                         build_year=grouping_year,
                         efficiency2=costs.at[key, "efficiency-heat"],
@@ -804,6 +845,7 @@ if __name__ == "__main__":
         capacity_threshold=snakemake.params.existing_capacities["threshold_capacity"],
         lifetime_values=snakemake.params.costs["fill_values"],
         renewable_carriers=renewable_carriers,
+        options=options,
     )
 
     if options["heating"]:

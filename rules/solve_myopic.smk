@@ -104,6 +104,36 @@ rule add_brownfield:
 ruleorder: add_existing_baseyear > add_brownfield
 
 
+rule add_project_generators:
+    message:
+        "Adding project generators for {wildcards.clusters} clusters, "
+        "{wildcards.planning_horizons} planning horizons"
+    params:
+        project=config_provider("backcasting", "project", default={"enable": False, "file": ""}),
+        baseyear=config_provider("scenario", "planning_horizons", 0),
+    input:
+        network=resources(
+            "networks/base_s_{clusters}_{opts}_{sector_opts}_{planning_horizons}_brownfield.nc"
+        ),
+    output:
+        resources(
+            "networks/base_s_{clusters}_{opts}_{sector_opts}_{planning_horizons}_brownfield_project.nc"
+        ),
+    log:
+        logs(
+            "add_project_generators_base_s_{clusters}_{opts}_{sector_opts}_{planning_horizons}.log"
+        ),
+    benchmark:
+        benchmarks(
+            "add_project_generators/base_s_{clusters}_{opts}_{sector_opts}_{planning_horizons}"
+        )
+    threads: 1
+    resources:
+        mem_mb=1000,
+    script:
+        scripts("rmi/add_project_generators.py")
+
+
 rule solve_sector_network_myopic:
     message:
         "Solving sector-coupled network with myopic foresight for {wildcards.clusters} clusters, {wildcards.planning_horizons} planning horizons, {wildcards.opts} electric options and {wildcards.sector_opts} sector options"
@@ -115,8 +145,15 @@ rule solve_sector_network_myopic:
         ),
         custom_extra_functionality=input_custom_extra_functionality,
     input:
-        network=resources(
-            "networks/base_s_{clusters}_{opts}_{sector_opts}_{planning_horizons}_brownfield.nc"
+        network=lambda w: (
+            resources(
+                f"networks/base_s_{w.clusters}_{w.opts}_{w.sector_opts}_{w.planning_horizons}_brownfield_project.nc"
+            )
+            if config_provider("backcasting", "project", "enable", default=False)(w)
+            else
+            resources(
+                f"networks/base_s_{w.clusters}_{w.opts}_{w.sector_opts}_{w.planning_horizons}_brownfield.nc"
+            )
         ),
     output:
         network=RESULTS
