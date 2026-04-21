@@ -8,7 +8,7 @@ Interactive runner for GHGP backcasting scenarios.
 Usage (from the repository root):
         python run/backcasting_run.py
 
-This script reads available scenarios from config/test/scenarios.rmi.yaml,
+This script reads available scenarios from config/scenarios.rmi.yaml,
 allows the user to select one or more scenarios (by year or name), and runs
 `snakemake solve_sector_networks` for each using:
 
@@ -72,9 +72,20 @@ from pathlib import Path
 
 import yaml
 
-BASE_CONFIG = "config/test/config.rmi.yaml"
-SCENARIOS_FILE = "config/test/scenarios.rmi.yaml"
 SNAKEMAKE_TARGET = "solve_sector_networks"
+
+_CONFIGS = [
+    (
+        "config/config.rmi.yaml",
+        "config/scenarios.rmi.yaml",
+        "Full model (config.rmi.yaml)",
+    ),
+    (
+        "config/test/config.rmi.DE.yaml",
+        "config/test/scenarios.rmi.DE.yaml",
+        "DE test model (config.rmi.DE.yaml)",
+    ),
+]
 
 # Matches _20XX (year 20xx) as a name segment: _2025, _2025_, or _2025 at end
 _YEAR_RE = re.compile(r"_20\d{2}([._]|$)")
@@ -325,6 +336,26 @@ def select_cpus():
         print(f"  '{cpu}' is not valid. Please enter 'all' or a positive number.")
 
 
+def select_config() -> tuple[str, str]:
+    """Ask the user which config/scenarios pair to use."""
+    print("\nAvailable configurations:")
+    for i, (cfg, scen, label) in enumerate(_CONFIGS, 1):
+        print(f"  {i}. {label}")
+        print(f"       config:    {cfg}")
+        print(f"       scenarios: {scen}")
+    while True:
+        answer = input("Select configuration [1]: ").strip()
+        if answer == "" or answer == "1":
+            cfg, scen, label = _CONFIGS[0]
+            print(f"  → {label}")
+            return cfg, scen
+        if answer == "2":
+            cfg, scen, label = _CONFIGS[1]
+            print(f"  → {label}")
+            return cfg, scen
+        print(f"  Please enter 1 or 2.")
+
+
 def select_dry_run_mode() -> bool:
     """Ask whether to do a dry-run and confirmation before each scenario."""
     while True:
@@ -342,20 +373,22 @@ def select_dry_run_mode() -> bool:
 
 
 def main():
+    print("=" * 60)
+    print("GHGP Backcasting Run Script")
+    print("=" * 60)
+
+    base_config_path, scenarios_file_path = select_config()
+
     # Load available scenarios
-    with open(SCENARIOS_FILE) as f:
+    with open(scenarios_file_path) as f:
         scenarios_config = yaml.safe_load(f)
 
     # Load base config for fallback values
-    with open(BASE_CONFIG) as f:
+    with open(base_config_path) as f:
         base_config = yaml.safe_load(f)
 
     scenario_list = list(scenarios_config.keys())
     reference_scenario = _find_reference_scenario(scenario_list)
-
-    print("=" * 60)
-    print("GHGP Backcasting Run Script")
-    print("=" * 60)
 
     selected_scenarios = select_scenarios(scenario_list)
     if not selected_scenarios:
@@ -423,7 +456,7 @@ def main():
                     files_str = " ".join(str(p) for p in symlinked)
                     cleanup_cmd = (
                         f"snakemake --cleanup-metadata {files_str}"
-                        f" --configfile {BASE_CONFIG} --config {config_override}"
+                        f" --configfile {base_config_path} --config {config_override}"
                     )
                     print("  Cleaning up metadata for symlinked files...")
                     os.system(cleanup_cmd)
@@ -432,7 +465,7 @@ def main():
                     # (those that produce the symlinked files)
                     print("  Forcing metadata: snakemake --touch for all upstream rules...")
                     touch_cmd = (
-                        f"snakemake --touch --configfile {BASE_CONFIG} --config {config_override}"
+                        f"snakemake --touch --configfile {base_config_path} --config {config_override}"
                     )
                     os.system(touch_cmd)
             else:
@@ -454,7 +487,7 @@ def main():
                 files_str = " ".join(str(p) for p in symlinked)
                 cleanup_cmd = (
                     f"snakemake --cleanup-metadata {files_str}"
-                    f" --configfile {BASE_CONFIG} --config {config_override}"
+                    f" --configfile {base_config_path} --config {config_override}"
                 )
                 print("  Cleaning up metadata for symlinked files...")
                 os.system(cleanup_cmd)
@@ -462,7 +495,7 @@ def main():
         # Build and execute the snakemake command.
         snakemake_base = (
             f"snakemake {cores_flag} {SNAKEMAKE_TARGET}"
-            f" --configfile {BASE_CONFIG} --config {config_override}"
+            f" --configfile {base_config_path} --config {config_override}"
         )
 
         if dry_run_mode:
