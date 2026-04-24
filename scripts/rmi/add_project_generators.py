@@ -53,6 +53,9 @@ def add_project_generators(
     n: pypsa.Network,
     project_file: str,
     baseyear: int,
+    carriers: list[str] | None = None,
+    sizes_mw: list[float] | None = None,
+    countries: list[str] | None = None,
 ) -> None:
     """Insert project generators defined in *project_file* into *n*.
 
@@ -65,8 +68,38 @@ def add_project_generators(
     baseyear:
         Planning horizon year, used to find the matching existing generator
         for profile / cost copying (e.g. 2025).
+    carriers:
+        If given, only rows whose ``carrier`` column is in this list are added.
+        Maps to ``backcasting.project.carrier`` in the config.
+    sizes_mw:
+        If given, only rows whose ``p_nom_MW`` column is in this list are added.
+        Maps to ``backcasting.project.size_MW`` in the config.
+    countries:
+        If given, only rows whose ``country`` column is in this list are added.
+        Maps to ``backcasting.project.country`` in the config.
     """
     project_gens = pd.read_csv(project_file)
+
+    if carriers is not None:
+        project_gens = project_gens[project_gens["carrier"].isin(carriers)]
+    if sizes_mw is not None:
+        project_gens = project_gens[project_gens["p_nom_MW"].isin(sizes_mw)]
+    if countries is not None:
+        project_gens = project_gens[project_gens["country"].isin(countries)]
+
+    if project_gens.empty:
+        logger.warning(
+            "No project generators match the active filters "
+            "(carriers=%s, sizes_mw=%s, countries=%s). Nothing added.",
+            carriers, sizes_mw, countries,
+        )
+        return
+
+    logger.info(
+        "Adding %d project generator(s) after filtering "
+        "(carriers=%s, sizes_mw=%s, countries=%s).",
+        len(project_gens), carriers, sizes_mw, countries,
+    )
 
     for _, row in project_gens.iterrows():
         country = str(row["country"])
@@ -179,12 +212,12 @@ if __name__ == "__main__":
 
         snakemake = mock_snakemake(
             "add_project_generators",
-            run="test-project-2025-3H-1M-DE-solar-100MW",
+            run="test-project-2020-3H-DE-solar-10MW",
             opts="",
-            clusters="2",
-            configfiles="config/test/config.rmi.yaml",
+            clusters="39",
+            configfiles="config/config.rmi.yaml",
             sector_opts="",
-            planning_horizons="2025",
+            planning_horizons="2020",
         )
 
     set_scenario_config(snakemake)
@@ -199,6 +232,9 @@ if __name__ == "__main__":
         n=n,
         project_file=project_config["file"],
         baseyear=baseyear,
+        carriers=project_config.get("carrier"),
+        sizes_mw=project_config.get("size_MW"),
+        countries=project_config.get("country"),
     )
 
     n.export_to_netcdf(snakemake.output[0])

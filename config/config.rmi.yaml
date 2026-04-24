@@ -22,7 +22,8 @@ remote:
 run:
   prefix: ""
   name:
-  - test-project-2025-3H-DE-solar-100MW
+  #- test-project-2020-3H-DE-solar-100MW
+  - test-project-2020-3H-DE-solar-10MW
   scenarios:
     enable: true
     file: config/scenarios.rmi.yaml
@@ -71,6 +72,9 @@ backcasting: # costs_{year_costs}.csv is copied to costs_{planning_horizons}.csv
   project:
     enable: false
     file: data/project_generators.csv
+    carrier: ["solar"]
+    size_MW: [10, 100]
+    country: ["DE"]
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#electricity
 electricity:

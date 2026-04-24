@@ -71,6 +71,9 @@ This document provides a rigorous, code-grounded reference for how the four main
 | `adjustments.sector.absolute.Store.H2 Store.e_nom_max` | `0.0` | constant |
 | `backcasting.project.enable` | `false` (override; default `true`) | constant |
 | `backcasting.project.file` | `data/project_generators.csv` | constant |
+| `backcasting.project.carrier` | `["solar"]` (example) | per-scenario |
+| `backcasting.project.size_MW` | `[100]` (example) | per-scenario |
+| `backcasting.project.country` | `["DE"]` (example) | per-scenario |
 
 ### Key architectural fact: planning_horizons[0] controls three things simultaneously
 
@@ -1043,6 +1046,105 @@ wildcard_constraints:
 
 automatically restricts the rule to run only for the first (and only) planning horizon. With `planning_horizons: [Y]`, it runs exclusively for year Y — correct behavior.
 
+### 7.6 Project Scenario: Injecting an Additional Renewable Generator
+
+#### 7.6.1 Concept
+
+The GHGP project requires comparing a **baseline scenario** (historical system only) with a **project scenario** (same system plus an additional renewable energy project). The emission impact of the project is defined as:
+
+```
+ΔCO₂(Y) = CO₂_emissions(baseline, Y) − CO₂_emissions(project, Y)
+```
+
+A non-binding CO₂ constraint (Section 7.5) is required so that `ΔCO₂(Y)` reflects a genuine marginal displacement signal rather than a reallocation of a fixed cap.
+
+#### 7.6.2 DAG Position
+
+```
+add_existing_baseyear
+    → resources/networks/...{Y}_brownfield.nc
+add_project_generators          ← NEW (runs only when backcasting.project.enable: true)
+    → resources/networks/...{Y}_brownfield_project.nc
+solve_sector_network_myopic
+    (reads _brownfield_project.nc if project.enable else _brownfield.nc)
+```
+
+The `add_project_generators` rule sits between `add_existing_baseyear` and `solve_sector_network_myopic`. For baseline scenarios (`project.enable: false`) the rule is not part of the DAG — `solve_sector_network_myopic` reads `_brownfield.nc` directly.
+
+#### 7.6.3 Project Generator CSV (`data/project_generators.csv`)
+
+The CSV defines the **universe** of available project generators. Each row represents one possible generator:
+
+| Column | Type | Description |
+|---|---|---|
+| `name` | str | Human-readable label (informational only) |
+| `country` | str (ISO 3166-1 alpha-2) | Country code (e.g. `DE`) |
+| `carrier` | str | PyPSA carrier string (e.g. `solar`, `onwind`) |
+| `p_nom_MW` | float | Installed capacity in MW |
+| `resource_class` | int (default 0) | Resource-class bin for profile lookup |
+
+Rows are **not** added unconditionally — they must pass all three active filters (see 7.6.4).
+
+#### 7.6.4 Config-Driven Filtering
+
+`backcasting.project` in the scenario config can specify three optional filter lists. The script applies them in sequence on the CSV before inserting any generator:
+
+```yaml
+backcasting:
+  project:
+    enable: true
+    file: data/project_generators.csv
+    carrier: ["solar"]       # keep only rows with carrier in this list
+    size_MW: [100]           # keep only rows with p_nom_MW in this list
+    country: ["DE"]          # keep only rows with country in this list
+```
+
+- If a key is **absent** from the config, that dimension is not filtered (pass-all).
+- All three keys default to `null` / absent in baseline scenarios — the filters are a no-op but the rule never runs anyway (`enable: false`).
+- If all filters together reduce the CSV to zero rows, the script emits a `WARNING` and exits cleanly without modifying the network.
+
+**Example**: with `carrier: ["solar"]`, `size_MW: [100]`, `country: ["DE"]` and the current CSV, exactly one row survives (the 100 MW solar DE row), and one generator is injected.
+
+#### 7.6.5 Generator Injection Logic
+
+For each surviving CSV row the script:
+
+1. Finds the first AC bus for the row's `country` code.
+2. Looks up the **source generator** `"{bus} {resource_class} {carrier}-{baseyear}"` (created by `add_existing_baseyear`) to copy techno-economic parameters from. Falls back to the first generator with the same carrier on the same bus if the exact key is absent.
+3. Copies `marginal_cost`, `capital_cost`, `efficiency`, and the hourly `p_max_pu` profile from the source generator.
+4. Adds a **fixed-capacity** generator (`p_nom_extendable=False`, `p_nom = p_nom_min = p_nom_max = p_nom_MW`).
+   - Name convention: `"{bus} {resource_class} {carrier}-project-{baseyear}"`
+   - `build_year = baseyear` (semantically correct; numerically irrelevant for dispatch-only runs)
+
+The injected generator dispatches freely whenever the capacity factor allows, at zero marginal cost (inherited from the IRENASTAT-sourced existing solar generators), displacing dispatchable generation.
+
+#### 7.6.6 Config Pattern in `scenarios.rmi.yaml`
+
+Project scenarios mirror their corresponding baseline scenarios, adding only the `backcasting.project` block:
+
+```yaml
+test-project-2024-3H-DE-solar-100MW:
+  scenario:
+    planning_horizons: [2024]
+  electricity:
+    powerplants_filter: "(DateOut > 2024 or DateOut != DateOut) and (DateIn < 2025 or DateIn != DateIn)"
+  load:
+    fixed_year: 2024
+  costs:
+    year: 2024
+  # ... same per-year overrides as test-baseline-2024-3H ...
+  backcasting:
+    year_costs: 2025
+    project:
+      enable: true
+      file: data/project_generators.csv
+      carrier: ["solar"]
+      size_MW: [100]
+      country: ["DE"]
+```
+
+The base config (`config.rmi.yaml`) keeps `backcasting.project.enable: false` so that all baseline scenarios remain unaffected.
+
 ### 7.5 CO₂ Budget: Made Non-Binding for All Backcasting Years
 
 `prepare_sector_network.py` calls `add_co2limit()` **unconditionally** — there is no enable/disable flag. The CO₂ budget value is resolved via `_helpers.get(co2_budget, investment_year)`, which looks up `investment_year` in the `co2_budget` dict from config and adds a `GlobalConstraint "CO2Limit"` to the network unless the resolved value is `None`.
@@ -1105,3 +1207,8 @@ Only the two milestone years are needed. `_helpers.get()` interpolates linearly 
 | `energy.energy_totals_year` | `build_central_heating_temperature_profiles`, `build_energy_totals`, `build_transport_demand`, `build_district_heat_share` | multiple | — | Reference year for JRC IDEES / Eurostat statistical data. Two constraints: (a) must be ≤ `planning_horizons[0]` (ValueError otherwise); (b) must be ≤ max available in downloaded dataset (2023 for GHGP). Combined rule: `min(Y, 2023)`. For Y < 2023: set to Y (constraint a forces it). For Y ≥ 2023: set to 2023 (data availability cap). |
 | `biomass.share_unsustainable_use_retained` | `build_biomass_potentials` | `build_biomass_potentials.py` | 299 | `.get(investment_year)` — returns None for non-milestone years → must add explicit key Y in config |
 | `biomass.share_sustainable_potential_available` | `build_biomass_potentials` | `build_biomass_potentials.py` | 327 | `.get(investment_year)` — same unsafe lookup — must add explicit key Y in config |
+| `backcasting.project.enable` | `add_project_generators` (rule in `solve_myopic.smk`) | `scripts/rmi/add_project_generators.py` | — | `true` → `add_project_generators` rule runs; `solve_sector_network_myopic` reads `_brownfield_project.nc`. `false` (default) → rule not in DAG; solver reads `_brownfield.nc` directly |
+| `backcasting.project.file` | `add_project_generators` | `scripts/rmi/add_project_generators.py` | — | Path to CSV defining the universe of available project generators |
+| `backcasting.project.carrier` | `add_project_generators` | `scripts/rmi/add_project_generators.py` | — | List of carrier strings; only CSV rows with `carrier ∈ list` are injected. If absent, all carriers pass |
+| `backcasting.project.size_MW` | `add_project_generators` | `scripts/rmi/add_project_generators.py` | — | List of sizes in MW; only CSV rows with `p_nom_MW ∈ list` are injected. If absent, all sizes pass |
+| `backcasting.project.country` | `add_project_generators` | `scripts/rmi/add_project_generators.py` | — | List of ISO alpha-2 country codes; only CSV rows with `country ∈ list` are injected. If absent, all countries pass |

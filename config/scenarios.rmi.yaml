@@ -243,7 +243,7 @@ test-baseline-2020-3H:
     year_costs: 2025
 
 #### PROJCECT SCENARIOS ####
-# Project scenario: adds a 100 MW solar generator in Germany on top of the 2025 baseline.
+# Project scenario: adds a solar generator in Germany on top of the 2025 baseline.
 
 test-project-2025-3H-DE-solar-100MW:
 
@@ -264,6 +264,9 @@ test-project-2025-3H-DE-solar-100MW:
     project:
       enable: true
       file: data/project_generators.csv
+      carrier: ["solar"]
+      size_MW: [100]
+      country: ["DE"]
 
 test-project-2024-3H-DE-solar-100MW:
   scenario:
@@ -315,6 +318,9 @@ test-project-2024-3H-DE-solar-100MW:
     project:
       enable: true
       file: data/project_generators.csv
+      carrier: ["solar"]
+      size_MW: [100]
+      country: ["DE"]
 
 test-project-2023-3H-DE-solar-100MW:
   scenario:
@@ -366,6 +372,9 @@ test-project-2023-3H-DE-solar-100MW:
     project:
       enable: true
       file: data/project_generators.csv
+      carrier: ["solar"]
+      size_MW: [100]
+      country: ["DE"]
 
 test-project-2022-3H-DE-solar-100MW:
   scenario:
@@ -417,6 +426,9 @@ test-project-2022-3H-DE-solar-100MW:
     project:
       enable: true
       file: data/project_generators.csv
+      carrier: ["solar"]
+      size_MW: [100]
+      country: ["DE"]
 
 test-project-2021-3H-DE-solar-100MW:
   scenario:
@@ -468,6 +480,9 @@ test-project-2021-3H-DE-solar-100MW:
     project:
       enable: true
       file: data/project_generators.csv
+      carrier: ["solar"]
+      size_MW: [100]
+      country: ["DE"]
 
 test-project-2020-3H-DE-solar-100MW:
   scenario:
@@ -494,3 +509,35 @@ test-project-2020-3H-DE-solar-100MW:
     project:
       enable: true
       file: data/project_generators.csv
+      carrier: ["solar"]
+      size_MW: [100]
+      country: ["DE"]
+
+test-project-2020-3H-DE-solar-10MW:
+  scenario:
+    planning_horizons:
+    - 2020
+
+  electricity:
+    powerplants_filter: "(DateOut > 2020 or DateOut != DateOut) and (DateIn < 2021 or DateIn != DateIn)"
+
+  load:
+    fixed_year: 2020
+
+  costs:
+    year: 2020
+
+  # No grouping_years_power override needed: 2020 is already a bin boundary in the default list.
+  # No biomass override needed: 2020 anchor years are in config.default.yaml.
+
+  energy:
+    energy_totals_year: 2020
+
+  backcasting:
+    year_costs: 2025
+    project:
+      enable: true
+      file: data/project_generators.csv
+      carrier: ["solar"]
+      size_MW: [10]
+      country: ["DE"]
