@@ -32,13 +32,25 @@ Two symlink strategies are applied automatically:
      scenario (detected automatically from the scenarios file).
 
      Year-independent files (safe to symlink):
-         - profile_{clusters}_{tech}.nc
-         - availability_matrix_{clusters}_{tech}.nc
+         - availability_matrix_{clusters}_{tech}.nc  (spatial mask only — atlite uses the
+           cutout grid geometry, not temporal data; all cutout years share the same domain)
          - regions_*.geojson / *_shapes.geojson
          - networks/base*.nc   (OSM network, before electricity)
-         - busmap, linemap, pop_layout, temperature profiles, heat profiles, etc.
+         - busmap, linemap, pop_layout_{total,urban,rural}.nc, pop_layout_base_s_{c}.csv
+           (pop_layout uses cutout.indicatormatrix() — spatial only)
 
      Year-dependent files (always recomputed, never symlinked cross-year):
+         - profile_{clusters}_{tech}.nc / profile_hydro.nc        (cutout-derived time series)
+         - regions_by_class_{clusters}_{tech}.geojson             (cutout-derived resource classes;
+                                                                   year-independent with
+                                                                   resource_classes=1 but marked
+                                                                   defensively)
+         - solar_rooftop_potentials_s_{clusters}.csv              (depends on regions_by_class_;
+                                                                   symlink would be immediately
+                                                                   overwritten by Snakemake anyway)
+         - temp_soil_* / temp_air_* / daily_heat_demand_* /       (cutout-derived; not produced
+           hourly_heat_demand_* / solar_thermal_*                  when heating=false but marked
+                                                                   defensively)
          - electricity_demand.csv / electricity_demand_base_s.nc  (depends on load.fixed_year)
          - powerplants_s_{clusters}.csv                           (depends on powerplants_filter)
          - costs_{year}_processed.csv                             (year in filename)
@@ -118,15 +130,31 @@ def _find_reference_scenario(scenario_list: list[str]) -> str | None:
     of year-independent files that can be safely symlinked to other scenarios:
 
     Year-INDEPENDENT files (identical across all backcasting years, safe to symlink):
-        - atlite cutout profiles (profile_{clusters}_{tech}.nc,
-          availability_matrix_{clusters}_{tech}.nc) — derived from a fixed
-          meteorological cutout and are not affected by the backcasting year
+        - availability_matrix_{clusters}_{tech}.nc — spatial mask only; atlite uses
+          the cutout purely for its grid geometry (x/y coordinates), not for any
+          temporal weather data. All cutout years share the same domain
+          (x[-12,42] y[33,72] dx=dy=0.3), so the matrix is identical across years.
         - Geographic shapes, regions, busmaps, linemaps — derived from the
           OSM network snapshot (Feb 2026) and the clustering algorithm,
           neither of which depends on the backcasting year
         - Base network (networks/base*.nc) — OSM topology, year-invariant
+        - pop_layout_{total,urban,rural}.nc — NUTS3 population regridded to cutout
+          grid; pop_layout_base_s_{c}.csv — clustered population. Both use
+          cutout.indicatormatrix() (spatial only), year-invariant.
 
     Year-DEPENDENT files (differ across backcasting years, never symlinked):
+        - profile_{clusters}_{tech}.nc / profile_hydro.nc — computed from the
+          per-horizon atlite cutout (europe-{year}-sarah3-era5); hourly capacity
+          factors change with the actual weather of each year
+        - regions_by_class_{clusters}_{tech}.geojson — resource quality classes
+          derived from the same cutout; content is year-independent with
+          resource_classes=1 (default) but marked defensively since
+          build_renewable_profiles runs anyway
+        - solar_rooftop_potentials_s_{clusters}.csv — depends on regions_by_class_;
+          symlink would be overwritten by Snakemake (input newer than output)
+        - temp_soil_* / temp_air_* / daily_heat_demand_* / hourly_heat_demand_* /
+          solar_thermal_* — hourly time series extracted from the cutout
+          (not produced now because heating=false, but marked defensively)
         - powerplants_s_{clusters}.csv — filtered by powerplants_filter (DateIn/DateOut)
         - electricity_demand.csv / electricity_demand_base_s.nc — filtered by load.fixed_year
         - costs_{year}_processed.csv — year encoded in filename
@@ -177,6 +205,56 @@ def _is_year_dependent(rel_posix: str) -> bool:
     # the downstream scripts extract a single year, making their outputs vary
     # between energy_totals_year=2020 and =2023.
     if name.startswith(_ENERGY_YEAR_PREFIXES):
+        return True
+    # Cutout-derived time-series files: built from atlite cutouts that are now
+    # per-planning-horizon (europe-{year}-sarah3-era5). The weather data differs
+    # between years, so these outputs must be recomputed for every baseline year.
+    #
+    # Renewable generation profiles (build_renewable_profiles, build_hydro_profile):
+    #   - profile_{clusters}_{tech}.nc
+    #   - profile_hydro.nc
+    #   - regions_by_class_{clusters}_{tech}.geojson  (resource quality classes)
+    #       With resource_classes=1 (default/RMI) the content is year-independent
+    #       (nbins==1 → class_regions = resource_regions, no CF binning). Marked
+    #       year-dependent defensively: build_renewable_profiles runs anyway for
+    #       profile_*.nc, and the co-output regions_by_class_* should match it.
+    if name.startswith("profile_"):
+        return True
+    if name.startswith("regions_by_class_"):
+        return True
+    # Solar rooftop potentials: produced by build_clustered_solar_rooftop_potentials
+    # which uses regions_by_class_{clusters}_solar.geojson as input. Since that
+    # file is not symlinked (year-dependent above), build_renewable_profiles will
+    # produce a fresh regions_by_class_* with a newer timestamp, causing Snakemake
+    # to rerun build_clustered_solar_rooftop_potentials regardless. Marking this
+    # file year-dependent avoids creating a symlink that will be immediately
+    # overwritten.
+    #   - solar_rooftop_potentials_s_{clusters}.csv
+    if name.startswith("solar_rooftop_potentials_s_"):
+        return True
+    # Sector-coupling heat/temperature profiles (build_temperature_profiles,
+    # build_daily_heat_demand, build_solar_thermal_profiles, etc.).
+    # Currently not produced because sector.heating=false in the RMI config,
+    # but marked here defensively so they are never incorrectly symlinked if
+    # heating is ever enabled.
+    #   - temp_soil_total_base_s_{clusters}.nc
+    #   - temp_air_total_base_s_{clusters}.nc
+    #   - temp_ambient_air_base_s_{clusters}_temporal_aggregate.nc
+    #   - daily_heat_demand_total_base_s_{clusters}.nc
+    #   - hourly_heat_demand_total_base_s_{clusters}.nc
+    #   - residential_heat_dsm_profile_total_base_s_{clusters}.csv
+    #   - solar_thermal_total_base_s_{clusters}.nc
+    if name.startswith(
+        (
+            "temp_soil_",
+            "temp_air_",
+            "temp_ambient_air_",
+            "daily_heat_demand_",
+            "hourly_heat_demand_",
+            "residential_heat_dsm_profile_",
+            "solar_thermal_",
+        )
+    ):
         return True
     return False
 

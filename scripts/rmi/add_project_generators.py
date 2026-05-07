@@ -102,30 +102,43 @@ def add_project_generators(
     )
 
     for _, row in project_gens.iterrows():
-        country = str(row["country"])
+        country_or_bus = str(row["country"])
         carrier = str(row["carrier"])
         p_nom_mw = float(row["p_nom_MW"])
         resource_class = str(int(row.get("resource_class", 0)))
 
         # ------------------------------------------------------------------
-        # 1.  Find the AC bus for this country
+        # 1.  Find the AC bus for this country/bus
+        #     The "country" column may contain either an ISO 3166-1 alpha-2
+        #     country code (e.g. "DE") or a direct bus name (e.g. "GB3 0").
         # ------------------------------------------------------------------
-        ac_buses = n.buses[
-            (n.buses.carrier == "AC") & (n.buses.country == country)
-        ]
-        if ac_buses.empty:
-            logger.warning(
-                "No AC bus found for country '%s'. Skipping row.", country
-            )
-            continue
-        bus = ac_buses.index[0]
-        if len(ac_buses) > 1:
-            logger.info(
-                "Multiple AC buses found for country '%s'. "
-                "Using the first one: '%s'.",
-                country,
-                bus,
-            )
+        if country_or_bus in n.buses.index:
+            # Direct bus reference
+            bus = country_or_bus
+            if n.buses.at[bus, "carrier"] != "AC":
+                logger.warning(
+                    "Bus '%s' is not an AC bus. Skipping row.", bus
+                )
+                continue
+        else:
+            # Country code → pick the first AC bus for that country
+            ac_buses = n.buses[
+                (n.buses.carrier == "AC") & (n.buses.country == country_or_bus)
+            ]
+            if ac_buses.empty:
+                logger.warning(
+                    "No AC bus found for country '%s'. Skipping row.",
+                    country_or_bus,
+                )
+                continue
+            bus = ac_buses.index[0]
+            if len(ac_buses) > 1:
+                logger.info(
+                    "Multiple AC buses found for country '%s'. "
+                    "Using the first one: '%s'.",
+                    country_or_bus,
+                    bus,
+                )
 
         # ------------------------------------------------------------------
         # 2.  Locate the source generator for profile / cost cloning
@@ -212,7 +225,7 @@ if __name__ == "__main__":
 
         snakemake = mock_snakemake(
             "add_project_generators",
-            run="test-project-2020-3H-DE-solar-10MW",
+            run="test-project-2020-3H-DE-solar-100MW",
             opts="",
             clusters="39",
             configfiles="config/config.rmi.yaml",

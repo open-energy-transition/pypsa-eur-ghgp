@@ -22,8 +22,7 @@ remote:
 run:
   prefix: ""
   name:
-  #- test-project-2020-3H-DE-solar-100MW
-  - test-project-2020-3H-DE-solar-10MW
+  - project-2020-3H-DE-solar-100MW
   scenarios:
     enable: true
     file: config/scenarios.rmi.yaml
@@ -45,7 +44,7 @@ scenario:
   sector_opts:
   - ""
   planning_horizons:
-  - 2025
+  - 2020
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#snapshots
 snapshots:
@@ -73,7 +72,7 @@ backcasting: # costs_{year_costs}.csv is copied to costs_{planning_horizons}.csv
     enable: false
     file: data/project_generators.csv
     carrier: ["solar"]
-    size_MW: [10, 100]
+    size_MW: [100]
     country: ["DE"]
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#electricity
@@ -150,6 +149,11 @@ sector:
   regional_oil_demand: false  # defensive/documentary only: supply bus ("EU oil") is hardcoded at
                               # prepare_sector_network.py:178 regardless of this flag; flag only
                               # affects demand buses (never created when all demand sectors disabled)
+
+costs:
+  emission_prices:
+    enable: true
+    co2: 50 # (€/tCO2) ~ yearly average year in the period 2020-2025 based on https://economy-finance.ec.europa.eu/trends-carbon-intensity-and-macroeconomic-role-eu-emissions-trading-system_en
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#clustering
 clustering:

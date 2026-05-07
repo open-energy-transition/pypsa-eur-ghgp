@@ -6283,11 +6283,12 @@ if __name__ == "__main__":
 
         snakemake = mock_snakemake(
             "prepare_sector_network",
+            run="test-baseline-2020-3H-CO2-price",
             opts="",
-            clusters="2",
+            clusters="39",
             sector_opts="",
-            planning_horizons="2024",
-            configfiles="config/test/config.rmi.yaml"
+            planning_horizons="2020",
+            configfiles="config/config.rmi.yaml"
         )
 
     configure_logging(snakemake)  # pylint: disable=E0606
