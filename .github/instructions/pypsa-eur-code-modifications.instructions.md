@@ -358,3 +358,144 @@ add_existing_renewables(
 - The fix is backward-compatible: for standard future-horizon runs (e.g., `baseyear=2030`), `df.columns <= 2030` retains all columns that were previously included, so the filter is a no-op.
 - The fix applies independently to each carrier (solar, onwind, offwind-ac) since the filter is inside the `for carrier, tech in tech_map.items()` loop.
 
+---
+
+## 7. Synthetic load supplement crash in `build_electricity_demand.py` when CSV does not cover snapshot years
+
+### Background
+
+`build_electricity_demand.py` can supplement missing OPSD/ENTSO-E/NESO load data with a synthetic CSV file (`load.supplement_synthetic: true`). The synthetic CSV currently covers years 2015–2023. When backcasting to years 2024 or 2025 with `load.fixed_year: Y`, the model snapshots are anchored to year Y. The supplement step selects the corresponding rows from the synthetic CSV using `.loc[snapshots]`.
+
+### Bug
+
+```python
+synthetic_load = pd.read_csv(fn, index_col=0, parse_dates=True)
+countries = list(set(countries) - set(["UA", "MD", "XK", "CY", "MT"]))
+synthetic_load = synthetic_load.loc[snapshots, countries]   # ← KeyError when snapshots=2024/2025
+load = load.combine_first(synthetic_load)
+```
+
+When `snapshots` contains timestamps from 2024 or 2025 but the synthetic CSV only covers up to 2023, `.loc[snapshots]` raises a `KeyError` because the requested timestamps are not present in the CSV index. This code part is run even though there are no missing data to fill with synthetic values (`combine_first()` would not do anything in this case).
+
+### Fix
+
+Use `.intersection()` to select only the snapshots that are actually present in the synthetic CSV index. If the intersection is empty (no overlap at all), skip the supplement step with a warning. If the intersection is partial, emit a warning with the count of missing timestamps and proceed with the available subset.
+
+**Original code:**
+```python
+synthetic_load = pd.read_csv(fn, index_col=0, parse_dates=True)
+countries = list(set(countries) - set(["UA", "MD", "XK", "CY", "MT"]))
+synthetic_load = synthetic_load.loc[snapshots, countries]
+load = load.combine_first(synthetic_load)
+```
+
+**Fixed code:**
+```python
+synthetic_load = pd.read_csv(fn, index_col=0, parse_dates=True)
+countries = list(set(countries) - set(["UA", "MD", "XK", "CY", "MT"]))
+available_snapshots = synthetic_load.index.intersection(snapshots)
+if available_snapshots.empty:
+    logger.warning(
+        "Synthetic load data does not cover the requested snapshots "
+        f"({snapshots[0]} – {snapshots[-1]}). Skipping supplement step."
+    )
+else:
+    if len(available_snapshots) < len(snapshots):
+        missing = len(snapshots) - len(available_snapshots)
+        logger.warning(
+            f"Synthetic load data covers only {len(available_snapshots)}/{len(snapshots)} "
+            f"snapshots ({missing} timestamps missing, will not be supplemented)."
+        )
+    synthetic_load = synthetic_load.loc[available_snapshots, countries]
+    load = load.combine_first(synthetic_load)
+```
+
+### Affected files and locations
+
+| File | Location | Change |
+|---|---|---|
+| `scripts/build_electricity_demand.py` | `supplement_synthetic` block (approx. line 313–334) | Replace `.loc[snapshots]` with `.intersection()`-based guard |
+
+### Notes
+
+- This fix is backward-compatible: when the synthetic CSV covers all requested snapshots (the common case for years 2015–2023), `.intersection()` returns all `snapshots` unchanged and the behavior is identical to before.
+- The `assert not load.isna().any().any()` at the end of the function still provides a hard check for unresolved NaN values. The supplement step is one of several gap-filling mechanisms (interpolation, time-shift copying); skipping it for years beyond the CSV coverage is acceptable if the primary OPSD/ENTSO-E sources are complete.
+
+---
+
+## 8. `noisy_costs` perturbation leaks between baseline and project scenarios in `solve_network.py`
+
+### Background
+
+PyPSA-Eur applies small random perturbations to marginal costs (`solving.options.noisy_costs: true`) to break LP degeneracy and ensure a unique optimal dispatch. The seed is fixed (`np.random.seed(solve_opts.get("seed", 123))`), so the sequence of perturbations is deterministic. However, numpy's Mersenne Twister RNG is **stateful**: each call to `np.random.random(n)` advances the RNG state by `n` steps. The total advance therefore depends on the number of components in the network at solve time.
+
+### Bug
+
+In the GHGP project, the project scenario adds one (or more) generators to the baseline network (via `scripts/rmi/add_project_generators.py`). These project generators then shift by one (or more) positions the perturbation assignment of all the components after them. That means the components after the project generator(s) receive**different** noise perturbations in the two scenarios, creating spurious cost differences that contaminate the emission-difference signal:
+
+```
+ΔCO₂ = CO₂(baseline) − CO₂(project)
+```
+
+If the noise on the same components differs between baseline and project, the two scenarios are not solving equivalent problems and the computed ΔCO₂ is not a reliable estimate of the project's emission impact.
+
+### Fix
+
+Exclude components whose index name contains `"project"` (case-insensitive) from the marginal-cost perturbation loop. Because all project generator names follow the naming convention defined in `data/project_generators.csv` (e.g., `"DE0 0 solar-project-2024"`), the filtered index has the **same length** in both the baseline and project scenarios. All the components other than the project generators receive the same noise in both scenarios.
+
+**Original code:**
+```python
+if solve_opts.get("noisy_costs"):
+    for t in n.components:
+        # if 'capital_cost' in t.static:
+        #    t.static['capital_cost'] += 1e1 + 2.*(np.random.random(len(t.static)) - 0.5)
+        if "marginal_cost" in t.static:
+            t.static["marginal_cost"] += 1e-2 + 2e-3 * (
+                np.random.random(len(t.static)) - 0.5
+            )
+
+    for t in n.components[["Line", "Link"]]:
+        if t.static.empty:
+            continue
+        t.static["capital_cost"] += (
+            1e-1 + 2e-2 * (np.random.random(len(t.static)) - 0.5)
+        ) * t.static["length"]
+```
+
+**Fixed code:**
+```python
+if solve_opts.get("noisy_costs"):
+    for t in n.components:
+        # if 'capital_cost' in t.static:
+        #    t.static['capital_cost'] += 1e1 + 2.*(np.random.random(len(t.static)) - 0.5)
+        if "marginal_cost" in t.static:
+            mask = ~t.static.index.str.contains("project", case=False)
+            idx = t.static.index[mask]
+            t.static.loc[idx, "marginal_cost"] += 1e-2 + 2e-3 * (
+                np.random.random(len(idx)) - 0.5
+            )
+
+    for t in n.components[["Line", "Link"]]:
+        if t.static.empty:
+            continue
+        t.static["capital_cost"] += (
+            1e-1 + 2e-2 * (np.random.random(len(t.static)) - 0.5)
+        ) * t.static["length"]
+```
+
+The key change: `len(t.static)` → `len(idx)` where `idx` excludes project components. Since the same filtering is applied in both baseline and project scenarios, `len(idx)` is identical in both cases.
+
+### Affected files and locations
+
+| File | Location | Change |
+|---|---|---|
+| `scripts/solve_network.py` | `noisy_costs` block (approx. line 497–514) | Add index mask to exclude components with `"project"` in their name |
+
+### Notes
+
+- The fix also prevents unintended noise on project generators themselves. Project generators typically represent zero-marginal-cost renewables (solar/wind); adding noise to their marginal cost is unnecessary and could slightly discourage their dispatch.
+- The second loop (Lines/Links capital_cost perturbation by length) is intentionally **not** filtered: it iterates over a different component type (`Line`, `Link`) that does not include any project generators (which are added as `Generator` components). The RNG state consumed by this loop is therefore identical in baseline and project scenarios without any modification.
+- The naming convention (`"project"` substring in generator names) is enforced by `scripts/rmi/add_project_generators.py`: the injected generator name is `"{bus} {resource_class} {carrier}-project-{baseyear}"`. Any future project generator added to `data/project_generators.csv` must follow this convention for the fix to remain effective.
+- This fix is GHGP-project-specific. For upstream PyPSA-Eur, where no "project" generators exist, the mask selects all components and the fix is a no-op (backward-compatible).
+
+

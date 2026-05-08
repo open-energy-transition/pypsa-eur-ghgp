@@ -316,8 +316,21 @@ if __name__ == "__main__":
         synthetic_load = pd.read_csv(fn, index_col=0, parse_dates=True)
         # UA, MD, XK, CY, MT do not appear in synthetic load data
         countries = list(set(countries) - set(["UA", "MD", "XK", "CY", "MT"]))
-        synthetic_load = synthetic_load.loc[snapshots, countries]
-        load = load.combine_first(synthetic_load)
+        available_snapshots = synthetic_load.index.intersection(snapshots)
+        if available_snapshots.empty:
+            logger.warning(
+                "Synthetic load data does not cover the requested snapshots "
+                f"({snapshots[0]} – {snapshots[-1]}). Skipping supplement step."
+            )
+        else:
+            if len(available_snapshots) < len(snapshots):
+                missing = len(snapshots) - len(available_snapshots)
+                logger.warning(
+                    f"Synthetic load data covers only {len(available_snapshots)}/{len(snapshots)} "
+                    f"snapshots ({missing} timestamps missing, will not be supplemented)."
+                )
+            synthetic_load = synthetic_load.loc[available_snapshots, countries]
+            load = load.combine_first(synthetic_load)
 
     assert not load.isna().any().any(), (
         "Load data contains nans. Adjust the parameters "

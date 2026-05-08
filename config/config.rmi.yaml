@@ -22,7 +22,7 @@ remote:
 run:
   prefix: ""
   name:
-  - project-2020-3H-DE-solar-100MW
+  - baseline-2024-3H
   scenarios:
     enable: true
     file: config/scenarios.rmi.yaml
@@ -44,7 +44,7 @@ scenario:
   sector_opts:
   - ""
   planning_horizons:
-  - 2020
+  - 2024
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#snapshots
 snapshots:

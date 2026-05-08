@@ -499,8 +499,10 @@ def prepare_network(
             # if 'capital_cost' in t.static:
             #    t.static['capital_cost'] += 1e1 + 2.*(np.random.random(len(t.static)) - 0.5)
             if "marginal_cost" in t.static:
-                t.static["marginal_cost"] += 1e-2 + 2e-3 * (
-                    np.random.random(len(t.static)) - 0.5
+                mask = ~t.static.index.str.contains("project", case=False)
+                idx = t.static.index[mask]
+                t.static.loc[idx, "marginal_cost"] += 1e-2 + 2e-3 * (
+                    np.random.random(len(idx)) - 0.5
                 )
 
         for t in n.components[["Line", "Link"]]:

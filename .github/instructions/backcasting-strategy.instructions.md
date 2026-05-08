@@ -24,12 +24,14 @@ This document provides a rigorous, code-grounded reference for how the four main
 - The specific challenges arising when backcasting to a historical year Y ∈ {2020, …, 2025}
 - Recommended configuration strategy for correct backcasting (Option B)
 
-### Current test configuration (`config/test/config.rmi.yaml`)
+### Current configuration (`config/config.rmi.yaml` + `config/scenarios.rmi.yaml`)
 
 | Parameter | Value | Scope |
 |---|---|---|
 | `foresight` | `myopic` | constant |
 | `scenario.planning_horizons` | `[Y]` (e.g., `[2025]` for baseline) | per-scenario |
+| `snapshots.start` / `snapshots.end` | `"Y-01-01"` / `"Y+1-01-01"`; if cutout fallback is used (e.g., 2022 → 2013), must match the fallback year instead | per-scenario |
+| `atlite.default_cutout` | `"europe-Y-sarah3-era5"` (e.g., `"europe-2025-sarah3-era5"`); fallback to nearest available if Y not in archive (e.g., 2022 → `"europe-2013-sarah3-era5"`) | per-scenario |
 | `load.fixed_year` | `Y` (per backcasting year) | per-scenario |
 | `costs.year` | `Y` (per backcasting year) | per-scenario |
 | `electricity.transmission_limit` | `v1.0` | constant |
@@ -843,21 +845,40 @@ All other changes listed below follow from this primary constraint.
 ### 7.2 Required Configuration Changes per Year Y
 
 ```yaml
-# Required changes in config/test/config.rmi.yaml (or per-year scenario file)
+# Required changes in config/scenarios.rmi.yaml (per-year scenario entry)
 
 scenario:
   planning_horizons:
   - Y                    # ← 1. primary control (baseyear, IRENASTAT cutoff, cost file)
 
+snapshots:
+  start: "Y-01-01"
+  end: "Y+1-01-01"
+  inclusive: left
+  # ← 2. simulation period — must span the full backcasting year Y.
+  # Exception: if the cutout for Y is unavailable and a fallback year is used
+  # (e.g., 2022 → cutout "europe-2013-sarah3-era5"), the snapshots must match
+  # the fallback cutout year instead (start: "2013-01-01", end: "2014-01-01").
+  # The cutout and snapshots must always be consistent.
+
 load:
-  fixed_year: Y          # ← 2. demand data from year Y
+  fixed_year: Y          # ← 3. demand data from year Y
 
 costs:
-  year: Y                # ← 3. technology costs for year Y (used by add_electricity)
+  year: Y                # ← 4. technology costs for year Y (used by add_electricity)
+
+atlite:
+  default_cutout: "europe-Y-sarah3-era5"
+  # ← 5. cutout for year Y — provides weather-based capacity factor profiles for solar/wind.
+  # IMPORTANT: ERA5-based cutouts are available for most years; sarah3 solar radiation data
+  # is not archived for every year. Check archive availability before running.
+  # Exception: if the cutout for year Y is not available, fall back to the nearest year
+  # (e.g., 2022 is not available → use "europe-2013-sarah3-era5" as fallback).
+  # The cutout year must match the model snapshots (determined by planning_horizons[0] = Y).
 
 electricity:
   powerplants_filter: "(DateOut > Y or DateOut != DateOut) and (DateIn < Y+1 or DateIn != DateIn)"
-  # ← 4. keep plants operating in year Y from PPM
+  # ← 6. keep plants operating in year Y from PPM
   # Note: "DateOut != DateOut" is the pandas .query() idiom for DateOut.isna()
 
 existing_capacities:
@@ -878,13 +899,13 @@ existing_capacities:
   - 2010
   - 2015
   - 2020
-  - Y          # ← 5. insert Y here if Y ∉ {2025, 2030} to avoid grouping_year > Y edge cases
+  - Y          # ← 7. insert Y here if Y ∉ {2025, 2030} to avoid grouping_year > Y edge cases
   - 2025
   - 2030
   # (skip the "- Y" line if Y = 2025, since 2025 is already in the list)
 
 energy:
-  energy_totals_year: <min(Y, 2023)>   # ← 6. statistical energy data reference year
+  energy_totals_year: <min(Y, 2023)>   # ← 8. statistical energy data reference year
   # Two constraints apply simultaneously:
   #
   # (a) ValueError constraint: build_central_heating_temperature_profiles raises
@@ -903,9 +924,9 @@ energy:
 
 biomass:
   share_unsustainable_use_retained:
-    Y: <value>   # ← 6. required for non-milestone years only (i.e., Y ∉ {2020, 2025, 2030, 2035, 2040, 2045, 2050})
+    Y: <value>   # ← 9. required for non-milestone years only (i.e., Y ∉ {2020, 2025, 2030, 2035, 2040, 2045, 2050})
   share_sustainable_potential_available:
-    Y: <value>   # ← 7. required for non-milestone years only
+    Y: <value>   # ← 10. required for non-milestone years only
   # IMPORTANT: dict merge preserves all existing default keys — only the new key Y is added.
   # Root cause: build_biomass_potentials.py calls .get(investment_year) on a plain Python dict
   # (not _helpers.get()), which returns None for missing keys → TypeError crash in .mul(None).
@@ -918,10 +939,10 @@ biomass:
   #   (constant between the 2020 and 2025 milestone values, which are both 1 and 0 respectively)
 ```
 
-The following settings are **one-time overrides from `config.default.yaml`**, constant across all backcasting years. Set them once in the base config file, not per-scenario:
+The following settings are **one-time overrides from `config.default.yaml`**, constant across all backcasting years. Set them once in `config/config.rmi.yaml`, not per-scenario:
 
 ```yaml
-# One-time overrides from config.default.yaml (constant across all backcasting years):
+# config/config.rmi.yaml — constant overrides (apply to all backcasting years):
 
 pypsa_eur:
   Generator:
@@ -1123,16 +1144,18 @@ The injected generator dispatches freely whenever the capacity factor allows, at
 Project scenarios mirror their corresponding baseline scenarios, adding only the `backcasting.project` block:
 
 ```yaml
-test-project-2024-3H-DE-solar-100MW:
+project-2024-3H-DE-solar-100MW:
   scenario:
     planning_horizons: [2024]
+  atlite:
+    default_cutout: "europe-2024-sarah3-era5"
   electricity:
     powerplants_filter: "(DateOut > 2024 or DateOut != DateOut) and (DateIn < 2025 or DateIn != DateIn)"
   load:
     fixed_year: 2024
   costs:
     year: 2024
-  # ... same per-year overrides as test-baseline-2024-3H ...
+  # ... same per-year overrides as baseline-2024-3H ...
   backcasting:
     year_costs: 2025
     project:
@@ -1144,6 +1167,14 @@ test-project-2024-3H-DE-solar-100MW:
 ```
 
 The base config (`config.rmi.yaml`) keeps `backcasting.project.enable: false` so that all baseline scenarios remain unaffected.
+
+### 7.7 `noisy_costs`: Baseline/Project Consistency
+
+PyPSA-Eur applies small random perturbations to marginal costs (`noisy_costs: true` in `solving.options`) to break LP degeneracy and obtain a unique optimal solution. These perturbations are seeded with a fixed seed, but the numpy Mersenne Twister RNG is **stateful**: the number of random draws consumed before reaching any given component depends on the total number of components that precede it.
+
+In the baseline scenario the network contains N generators. In the project scenario the network contains N+k generators (one additional project generator per injected CSV row). Because the project generators are inserted *before* the Links and StorageUnits in the component iteration order, adding k generators shifts the RNG state for all subsequent component types. As a result, Links and StorageUnits receive **different** noise perturbations in the baseline and project scenarios, even though they are structurally identical. This introduces spurious differences in dispatch costs that would contaminate the emission-difference signal.
+
+**Fix** (see `pypsa-eur-code-modifications.instructions.md` §8): the noisy_costs block is modified to **exclude components whose name contains `"project"`** (case-insensitive) from the marginal-cost perturbation loop. Because all project generator names follow the convention `"... project ..."` (from `data/project_generators.csv`), the filtered index has the same length in both baseline and project scenarios, so the RNG consumes an identical number of draws and all subsequent components receive identical noise. Project generators themselves have `marginal_cost = 0` (zero-marginal-cost renewables), so no perturbation is needed or appropriate.
 
 ### 7.5 CO₂ Budget: Made Non-Binding for All Backcasting Years
 
@@ -1161,7 +1192,7 @@ co2_budget:
 
 These limits must be **non-binding** for all backcasting years in the GHGP project (see [039-rmi-ghgp.instructions.md](039-rmi-ghgp.instructions.md)). The project objective is to quantify the emission impact of an additional renewable energy project by comparing a baseline and a project scenario. If a binding CO₂ cap were active, the optimizer would respect it in both scenarios identically: once the cap is met, there is no further incentive to reduce emissions, and the marginal emission impact of the additional renewable would be absorbed elsewhere rather than reflected in a genuine emission difference. To preserve the causal signal between the project and system-level emissions, no binding CO₂ constraint must be imposed.
 
-Set the following in `config/test/config.rmi.yaml` (once, applies to all backcasting years):
+Set the following in `config/config.rmi.yaml` (once, applies to all backcasting years):
 
 ```yaml
 co2_budget:
@@ -1182,8 +1213,10 @@ Only the two milestone years are needed. `_helpers.get()` interpolates linearly 
 | Config key | Consuming rule | Script | Line | Effect |
 |---|---|---|---|---|
 | `scenario.planning_horizons[0]` | `add_existing_baseyear` | `add_existing_baseyear.py` | 792 | Sets `baseyear` → IRENASTAT cutoff, DateOut phaseout threshold, cost file |
+| `snapshots.start` / `snapshots.end` | `build_cutout`, all rules | multiple | — | Defines the simulation period. Must span year Y (or the fallback cutout year when Y is unavailable in the archive). Snapshots and `atlite.default_cutout` must always refer to the same calendar year. |
 | `electricity.powerplants_filter` | `build_powerplants` | `build_powerplants.py` | 239-241 | Filters PPM DataFrame; result propagates to all downstream scripts |
 | `electricity.transmission_limit` | `prepare_network` | `prepare_network.py` | 357-359 | Parsed into kind+factor; controls `s_nom_extendable` |
+| `atlite.default_cutout` | `build_cutout`, `build_renewable_profiles` | `build_cutout.py`, `build_renewable_profiles.py` | — | Selects the ERA5/sarah3 cutout for year Y; determines renewable capacity factor profiles (p_max_pu). Must match `planning_horizons[0]`. If the cutout for Y is unavailable in the archive (e.g., 2022), use the nearest available year as fallback. |
 | `load.fixed_year` | `build_electricity_demand` | `build_electricity_demand.py` | 328-336 | Replaces year component of each snapshot timestamp for demand lookup |
 | `lines.under_construction` | `base_network` | `base_network.py` | 618 | Handles UC lines: keep/zero/remove |
 | `existing_capacities.grouping_years_power` | `add_existing_baseyear` | `add_existing_baseyear.py` | 261-267 | `pd.cut` bins for assigning `grouping_year` to each plant |
