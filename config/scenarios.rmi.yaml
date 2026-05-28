@@ -152,11 +152,11 @@ baseline-2022-3H:
     - 2022
 
   atlite:
-    default_cutout: "europe-2013-sarah3-era5"  # 2022 not available in archive
+    default_cutout: "europe-2022-sarah3-era5"  # 2022 not available in archive
 
   snapshots:
-    start: "2013-01-01"
-    end: "2014-01-01"
+    start: "2022-01-01"
+    end: "2023-01-01"
     inclusive: left
 
   electricity:
@@ -457,11 +457,11 @@ project-2022-3H-DE-solar-100MW:
     - 2022
 
   atlite:
-    default_cutout: "europe-2013-sarah3-era5"  # 2022 not available in archive
+    default_cutout: "europe-2022-sarah3-era5"  # 2022 not available in archive
 
   snapshots:
-    start: "2013-01-01"
-    end: "2014-01-01"
+    start: "2022-01-01"
+    end: "2023-01-01"
     inclusive: left
 
   electricity:
@@ -682,6 +682,254 @@ project-2020-3H-RO-solar-100MW:
       size_MW: [100]
       country: ["RO"]
 
+project-2021-3H-RO-solar-100MW:
+  scenario:
+    planning_horizons:
+    - 2021
+
+  atlite:
+    default_cutout: "europe-2021-sarah3-era5"
+
+  snapshots:
+    start: "2021-01-01"
+    end: "2022-01-01"
+    inclusive: left
+
+  electricity:
+    powerplants_filter: "(DateOut > 2021 or DateOut != DateOut) and (DateIn < 2022 or DateIn != DateIn)"
+
+  load:
+    fixed_year: 2021
+
+  existing_capacities:
+    grouping_years_power:
+    - 1900
+    - 1950
+    - 1955
+    - 1960
+    - 1965
+    - 1970
+    - 1975
+    - 1980
+    - 1985
+    - 1990
+    - 1995
+    - 2000
+    - 2005
+    - 2010
+    - 2015
+    - 2020
+    - 2021
+    - 2025
+    - 2030
+
+  costs:
+    year: 2021
+
+  biomass:
+    share_unsustainable_use_retained:
+      2021: 1.0
+    share_sustainable_potential_available:
+      2021: 0
+
+  energy:
+    energy_totals_year: 2021
+
+  backcasting:
+    year_costs: 2025
+    project:
+      enable: true
+      file: data/project_generators.csv
+      carrier: ["solar"]
+      size_MW: [100]
+      country: ["RO"]
+
+project-2022-3H-RO-solar-100MW:
+  scenario:
+    planning_horizons:
+    - 2022
+
+  atlite:
+    default_cutout: "europe-2022-sarah3-era5"  # 2022 not available in archive
+
+  snapshots:
+    start: "2022-01-01"
+    end: "2023-01-01"
+    inclusive: left
+
+  electricity:
+    powerplants_filter: "(DateOut > 2022 or DateOut != DateOut) and (DateIn < 2023 or DateIn != DateIn)"
+
+  load:
+    fixed_year: 2022
+
+  existing_capacities:
+    grouping_years_power:
+    - 1900
+    - 1950
+    - 1955
+    - 1960
+    - 1965
+    - 1970
+    - 1975
+    - 1980
+    - 1985
+    - 1990
+    - 1995
+    - 2000
+    - 2005
+    - 2010
+    - 2015
+    - 2020
+    - 2022
+    - 2025
+    - 2030
+
+  costs:
+    year: 2022
+
+  biomass:
+    share_unsustainable_use_retained:
+      2022: 1.0
+    share_sustainable_potential_available:
+      2022: 0
+
+  energy:
+    energy_totals_year: 2022
+
+  backcasting:
+    year_costs: 2025
+    project:
+      enable: true
+      file: data/project_generators.csv
+      carrier: ["solar"]
+      size_MW: [100]
+      country: ["RO"]
+
+project-2023-3H-RO-solar-100MW:
+  scenario:
+    planning_horizons:
+    - 2023
+
+  atlite:
+    default_cutout: "europe-2023-sarah3-era5"
+
+  snapshots:
+    start: "2023-01-01"
+    end: "2024-01-01"
+    inclusive: left
+
+  electricity:
+    powerplants_filter: "(DateOut > 2023 or DateOut != DateOut) and (DateIn < 2024 or DateIn != DateIn)"
+
+  load:
+    fixed_year: 2023
+
+  existing_capacities:
+    grouping_years_power:
+    - 1900
+    - 1950
+    - 1955
+    - 1960
+    - 1965
+    - 1970
+    - 1975
+    - 1980
+    - 1985
+    - 1990
+    - 1995
+    - 2000
+    - 2005
+    - 2010
+    - 2015
+    - 2020
+    - 2023
+    - 2025
+    - 2030
+
+  costs:
+    year: 2023
+
+  biomass:
+    share_unsustainable_use_retained:
+      2023: 1.0
+    share_sustainable_potential_available:
+      2023: 0
+
+  energy:
+    energy_totals_year: 2023
+
+  backcasting:
+    year_costs: 2025
+    project:
+      enable: true
+      file: data/project_generators.csv
+      carrier: ["solar"]
+      size_MW: [100]
+      country: ["RO"]
+
+project-2024-3H-RO-solar-100MW:
+  scenario:
+    planning_horizons:
+    - 2024
+
+  atlite:
+    default_cutout: "europe-2024-sarah3-era5"
+
+  snapshots:
+    start: "2024-01-01"
+    end: "2025-01-01"
+    inclusive: left
+
+  electricity:
+    powerplants_filter: "(DateOut > 2024 or DateOut != DateOut) and (DateIn < 2025 or DateIn != DateIn)"
+
+  load:
+    fixed_year: 2024
+
+  existing_capacities:
+    grouping_years_power:
+    - 1900
+    - 1950
+    - 1955
+    - 1960
+    - 1965
+    - 1970
+    - 1975
+    - 1980
+    - 1985
+    - 1990
+    - 1995
+    - 2000
+    - 2005
+    - 2010
+    - 2015
+    - 2020
+    - 2024
+    - 2025
+    - 2030
+
+  costs:
+    year: 2024
+
+  biomass:
+    share_unsustainable_use_retained:
+      2024: 1.0
+    share_sustainable_potential_available:
+      2024: 0
+
+  energy:
+    energy_totals_year: 2023
+
+  backcasting:
+    year_costs: 2025
+    project:
+      enable: true
+      file: data/project_generators.csv
+      carrier: ["solar"]
+      size_MW: [100]
+      country: ["RO"]
+
 #### Northern Ireland-onwind-100MW
 
 project-2025-3H-GB30-onwind-100MW:
@@ -742,6 +990,254 @@ project-2020-3H-GB30-onwind-100MW:
 
   energy:
     energy_totals_year: 2020
+
+  backcasting:
+    year_costs: 2025
+    project:
+      enable: true
+      file: data/project_generators.csv
+      carrier: ["onwind"]
+      size_MW: [100]
+      country: ["GB3 0"]
+
+project-2021-3H-GB30-onwind-100MW:
+  scenario:
+    planning_horizons:
+    - 2021
+
+  atlite:
+    default_cutout: "europe-2021-sarah3-era5"
+
+  snapshots:
+    start: "2021-01-01"
+    end: "2022-01-01"
+    inclusive: left
+
+  electricity:
+    powerplants_filter: "(DateOut > 2021 or DateOut != DateOut) and (DateIn < 2022 or DateIn != DateIn)"
+
+  load:
+    fixed_year: 2021
+
+  existing_capacities:
+    grouping_years_power:
+    - 1900
+    - 1950
+    - 1955
+    - 1960
+    - 1965
+    - 1970
+    - 1975
+    - 1980
+    - 1985
+    - 1990
+    - 1995
+    - 2000
+    - 2005
+    - 2010
+    - 2015
+    - 2020
+    - 2021
+    - 2025
+    - 2030
+
+  costs:
+    year: 2021
+
+  biomass:
+    share_unsustainable_use_retained:
+      2021: 1.0
+    share_sustainable_potential_available:
+      2021: 0
+
+  energy:
+    energy_totals_year: 2021
+
+  backcasting:
+    year_costs: 2025
+    project:
+      enable: true
+      file: data/project_generators.csv
+      carrier: ["onwind"]
+      size_MW: [100]
+      country: ["GB3 0"]
+
+project-2022-3H-GB30-onwind-100MW:
+  scenario:
+    planning_horizons:
+    - 2022
+
+  atlite:
+    default_cutout: "europe-2022-sarah3-era5"  # 2022 not available in archive
+
+  snapshots:
+    start: "2022-01-01"
+    end: "2023-01-01"
+    inclusive: left
+
+  electricity:
+    powerplants_filter: "(DateOut > 2022 or DateOut != DateOut) and (DateIn < 2023 or DateIn != DateIn)"
+
+  load:
+    fixed_year: 2022
+
+  existing_capacities:
+    grouping_years_power:
+    - 1900
+    - 1950
+    - 1955
+    - 1960
+    - 1965
+    - 1970
+    - 1975
+    - 1980
+    - 1985
+    - 1990
+    - 1995
+    - 2000
+    - 2005
+    - 2010
+    - 2015
+    - 2020
+    - 2022
+    - 2025
+    - 2030
+
+  costs:
+    year: 2022
+
+  biomass:
+    share_unsustainable_use_retained:
+      2022: 1.0
+    share_sustainable_potential_available:
+      2022: 0
+
+  energy:
+    energy_totals_year: 2022
+
+  backcasting:
+    year_costs: 2025
+    project:
+      enable: true
+      file: data/project_generators.csv
+      carrier: ["onwind"]
+      size_MW: [100]
+      country: ["GB3 0"]
+
+project-2023-3H-GB30-onwind-100MW:
+  scenario:
+    planning_horizons:
+    - 2023
+
+  atlite:
+    default_cutout: "europe-2023-sarah3-era5"
+
+  snapshots:
+    start: "2023-01-01"
+    end: "2024-01-01"
+    inclusive: left
+
+  electricity:
+    powerplants_filter: "(DateOut > 2023 or DateOut != DateOut) and (DateIn < 2024 or DateIn != DateIn)"
+
+  load:
+    fixed_year: 2023
+
+  existing_capacities:
+    grouping_years_power:
+    - 1900
+    - 1950
+    - 1955
+    - 1960
+    - 1965
+    - 1970
+    - 1975
+    - 1980
+    - 1985
+    - 1990
+    - 1995
+    - 2000
+    - 2005
+    - 2010
+    - 2015
+    - 2020
+    - 2023
+    - 2025
+    - 2030
+
+  costs:
+    year: 2023
+
+  biomass:
+    share_unsustainable_use_retained:
+      2023: 1.0
+    share_sustainable_potential_available:
+      2023: 0
+
+  energy:
+    energy_totals_year: 2023
+
+  backcasting:
+    year_costs: 2025
+    project:
+      enable: true
+      file: data/project_generators.csv
+      carrier: ["onwind"]
+      size_MW: [100]
+      country: ["GB3 0"]
+
+project-2024-3H-GB30-onwind-100MW:
+  scenario:
+    planning_horizons:
+    - 2024
+
+  atlite:
+    default_cutout: "europe-2024-sarah3-era5"
+
+  snapshots:
+    start: "2024-01-01"
+    end: "2025-01-01"
+    inclusive: left
+
+  electricity:
+    powerplants_filter: "(DateOut > 2024 or DateOut != DateOut) and (DateIn < 2025 or DateIn != DateIn)"
+
+  load:
+    fixed_year: 2024
+
+  existing_capacities:
+    grouping_years_power:
+    - 1900
+    - 1950
+    - 1955
+    - 1960
+    - 1965
+    - 1970
+    - 1975
+    - 1980
+    - 1985
+    - 1990
+    - 1995
+    - 2000
+    - 2005
+    - 2010
+    - 2015
+    - 2020
+    - 2024
+    - 2025
+    - 2030
+
+  costs:
+    year: 2024
+
+  biomass:
+    share_unsustainable_use_retained:
+      2024: 1.0
+    share_sustainable_potential_available:
+      2024: 0
+
+  energy:
+    energy_totals_year: 2023
 
   backcasting:
     year_costs: 2025

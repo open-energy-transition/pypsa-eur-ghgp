@@ -40,6 +40,17 @@ if __name__ == "__main__":
     pop_layout = pd.read_csv(snakemake.input.clustered_pop_layout, index_col=0)
 
     totals = pd.read_csv(snakemake.input.energy_totals, index_col=[0, 1])
+
+    if snakemake.wildcards.kind == "heat":
+        available_years = totals.index.get_level_values(1).unique()
+        data_years = data_years[pd.Series(data_years).isin(available_years).values]
+        if len(data_years) == 0:
+            data_years = int(config["energy_totals_year"])
+            logger.warning(
+                f"Snapshot years not found in energy totals data. "
+                f"Falling back to energy_totals_year={data_years}."
+            )
+
     totals = totals.loc[idx[:, data_years], :].groupby("country").mean()
 
     nodal_totals = totals.loc[pop_layout.ct].fillna(0.0)
