@@ -88,8 +88,6 @@ report/*.toc
 
 merger-todos.md
 
-*.html
-
 # latex files
 *.aux
 *.lof
