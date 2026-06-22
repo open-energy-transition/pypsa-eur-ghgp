@@ -116,6 +116,7 @@ CLAUDE.md
 .claude/
 .github/copilot-instructions.md
 CLAUDE.local.md
+.github/instructions/*
 # pixi environments
 .pixi/*
 !.pixi/config.toml
