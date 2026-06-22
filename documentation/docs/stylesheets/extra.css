@@ -11,21 +11,27 @@
   list-style-type: square;
 }
 
-/* Reduce extra gap after headings for a more consistent section rhythm. */
-.md-typeset h1,
-.md-typeset h2,
-.md-typeset h3,
-.md-typeset h4,
-.md-typeset h5,
-.md-typeset h6 {
-  margin-bottom: 0.4em;
+/* Reduce heading/content gap with stronger selectors than theme defaults. */
+.md-content__inner.md-typeset h1,
+.md-content__inner.md-typeset h2,
+.md-content__inner.md-typeset h3,
+.md-content__inner.md-typeset h4,
+.md-content__inner.md-typeset h5,
+.md-content__inner.md-typeset h6 {
+  margin-bottom: 0.35em !important;
 }
 
-.md-typeset h1 + *,
-.md-typeset h2 + *,
-.md-typeset h3 + *,
-.md-typeset h4 + *,
-.md-typeset h5 + *,
-.md-typeset h6 + * {
-  margin-top: 0;
+.md-content__inner.md-typeset h1 + p,
+.md-content__inner.md-typeset h2 + p,
+.md-content__inner.md-typeset h3 + p,
+.md-content__inner.md-typeset h4 + p,
+.md-content__inner.md-typeset h5 + p,
+.md-content__inner.md-typeset h6 + p,
+.md-content__inner.md-typeset h1 + ul,
+.md-content__inner.md-typeset h2 + ul,
+.md-content__inner.md-typeset h3 + ul,
+.md-content__inner.md-typeset h4 + ul,
+.md-content__inner.md-typeset h5 + ul,
+.md-content__inner.md-typeset h6 + ul {
+  margin-top: 0 !important;
 }
