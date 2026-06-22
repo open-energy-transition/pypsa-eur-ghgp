@@ -119,3 +119,6 @@ CLAUDE.local.md
 # pixi environments
 .pixi/*
 !.pixi/config.toml
+
+# post-processing
+post-processing/*
