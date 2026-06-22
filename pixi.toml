@@ -152,7 +152,7 @@ cmd = "mkdocs serve"
 
 [feature.doc-project.tasks.docs-build]
 cwd = "documentation"
-cmd = "mkdocs build -d ../doc-project"
+cmd = "mkdocs build -d ../docs"
 
 [feature.doc-project.dependencies]
 mkdocs = ">=1.6.0"
