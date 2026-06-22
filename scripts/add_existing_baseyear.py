@@ -405,9 +405,7 @@ def add_power_capacities_installed_before_baseyear(
             # extendable_carriers: [] (backcasting / dispatch-only mode) the Links
             # are non-extendable and p_nom=0 would prevent any dispatch.
             if not already_build.empty:
-                capacity_ab = capacity.loc[
-                    already_build.str.replace(name_suffix, "")
-                ]
+                capacity_ab = capacity.loc[already_build.str.replace(name_suffix, "")]
                 n.links.loc[already_build, "p_nom"] = (
                     capacity_ab.values / costs.at[generator, "efficiency"]
                 )
