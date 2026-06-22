@@ -36,6 +36,10 @@ theme:
     - toc.follow
     - navigation.top
 
+nav:
+  - Home: index.md
+  - Test: test.md
+
 markdown_extensions:
   - material.extensions.preview:
       configurations:

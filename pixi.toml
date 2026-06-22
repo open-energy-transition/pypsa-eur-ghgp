@@ -146,6 +146,19 @@ tabula-py = "==2.7.0"
 tenacity = "==9.1.2"
 tsam = "==2.3.9"
 
+[feature.doc-project.tasks.docs-serve]
+cwd = "documentation"
+cmd = "mkdocs serve"
+
+[feature.doc-project.tasks.docs-build]
+cwd = "documentation"
+cmd = "mkdocs build"
+
+[feature.doc-project.dependencies]
+mkdocs = ">=1.6.0"
+mkdocs-material = ">=9.5.0"
+python = ">=3.10"
+
 [feature.test.tasks]
 
 integration-tests = """
@@ -175,4 +188,5 @@ pytest = ">=8.4.2"
 
 [environments]
 doc = { features = ["doc"], no-default-feature = true }
+doc-project = { features = ["doc-project"], no-default-feature = true }
 test = ["test"]
