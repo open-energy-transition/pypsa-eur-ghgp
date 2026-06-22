@@ -1,0 +1,54 @@
+site_name: PyPSA-Eur-GHGP-Retrospective
+theme:
+  name: material
+  logo: supporting-material/logo_OET_cropped.png
+  palette:
+    # Palette toggle for light mode
+    - scheme: default
+      toggle:
+        icon: material/brightness-7 
+
+
+        name: Switch to dark mode
+      primary: grey
+      accent: red
+
+    # Palette toggle for dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+      primary: grey
+      accent: red
+  highlightjs: true
+  hljs_languages:
+    - yaml
+    - rust
+  features:
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.instant.progress
+    - navigation.instant.preview
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.path
+    - navigation.indexes
+    - toc.follow
+    - navigation.top
+
+markdown_extensions:
+  - material.extensions.preview:
+      configurations:
+        - targets:
+            include:
+              - changelog/index.md
+              - customization.md
+              - insiders/changelog/*
+              - setup/extensions/*
+  - pymdownx.arithmatex:
+      generic: true
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+repo_url: https://github.com/open-energy-transition/pypsa-eur-ghgp
