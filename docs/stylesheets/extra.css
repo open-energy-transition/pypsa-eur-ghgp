@@ -1,0 +1,12 @@
+/* Keep level-1 bullets filled and force level-2 bullets hollow. */
+.md-typeset ul {
+  list-style-type: disc;
+}
+
+.md-typeset ul ul {
+  list-style-type: circle;
+}
+
+.md-typeset ul ul ul {
+  list-style-type: square;
+}

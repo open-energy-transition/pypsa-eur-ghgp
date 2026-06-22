@@ -1,19 +1,11 @@
-# PyPSA-Eur GHGP Documentation
+# GHGP-Retrospective consequential performance metric with PyPSA-Eur
 
-Welcome to the PyPSA-Eur GHGP project documentation.
+This repository is a soft-fork of [PyPSA-Eur](https://github.com/pypsa/pypsa-eur) and contains the entire project `GHGP-Retrospective consequential performance metric` carried out by [Open Energy Transition (OET)](https://openenergytransition.org/) and [RMI](https://rmi.org/), including code and report. The philosophy behind this repository is that no intermediary results are included, but all results are computed from raw data and code. The structure is also inspired by [cookiecutter-project](https://github.com/PyPSA/cookiecutter-project).
 
-This project implements a retrospective consequential performance metric for the European power system, using PyPSA-Eur with a backcasting approach covering the period 2020-2025.
+This repository is maintained using [OET's soft-fork strategy](https://open-energy-transition.github.io/handbook/docs/Engineering/SoftForkStrategy). OET's primary aim is to contribute as much as possible to the open source (OS) upstream repositories. For long-term changes that cannot be directly merged upstream, the strategy organizes and maintains OET forks, ensuring they remain up-to-date and compatible with upstream, while also supporting future contributions back to the OS repositories.
 
 ## Quick Links
 
 - **Project Repository**: [pypsa-eur-ghgp on GitHub](https://github.com/open-energy-transition/pypsa-eur-ghgp)
+- **PyPSA-Eur Documentation**: [pypsa-eur.readthedocs.io](https://pypsa-eur.readthedocs.io/)
 - **PyPSA Documentation**: [pypsa.org](https://pypsa.org/)
-- **PyPSA-Eur**: [pypsa-eur.readthedocs.io](https://pypsa-eur.readthedocs.io/)
-
-## About
-
-The project focuses on calculating consequential GHG emissions metrics aligned with the Greenhouse Gas Protocol (GHGP) framework, specifically Scope 2 Guidance for electricity sector emissions.
-
----
-
-Start exploring the documentation using the menu on the left.

@@ -21,7 +21,7 @@ This repository is a soft-fork of [PyPSA-Eur](https://github.com/pypsa/pypsa-eur
 
 This repository is maintained using [OET's soft-fork strategy](https://open-energy-transition.github.io/handbook/docs/Engineering/SoftForkStrategy). OET's primary aim is to contribute as much as possible to the open source (OS) upstream repositories. For long-term changes that cannot be directly merged upstream, the strategy organizes and maintains OET forks, ensuring they remain up-to-date and compatible with upstream, while also supporting future contributions back to the OS repositories.
 
-The full documentation is available at [...], while below is reported a general overview of PyPSA-Eur installation, structure, and workflows.
+The full documentation is available at https://open-energy-transition.github.io/pypsa-eur-ghgp/, while below is reported a general overview of PyPSA-Eur installation, structure, and workflows.
 
 
 # Repository structure
