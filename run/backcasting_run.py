@@ -124,7 +124,8 @@ _ENERGY_YEAR_PREFIXES = (
 
 
 def _find_reference_scenario(scenario_list: list[str]) -> str | None:
-    """Return the baseline-2025 scenario name to use as the symlink reference.
+    """
+    Return the baseline-2025 scenario name to use as the symlink reference.
 
     The 2025 baseline is the unique correct choice because it maximises the set
     of year-independent files that can be safely symlinked to other scenarios:
@@ -184,7 +185,8 @@ def _find_reference_scenario(scenario_list: list[str]) -> str | None:
 
 
 def _is_year_dependent(rel_posix: str) -> bool:
-    """Return True if this resource file varies across backcasting years.
+    """
+    Return True if this resource file varies across backcasting years.
     Used to determine if a file is safe to symlink between baselines of different years.
     """
     name = Path(rel_posix).name
@@ -260,7 +262,8 @@ def _is_year_dependent(rel_posix: str) -> bool:
 
 
 def _find_reference_resources(scenario_name: str | None) -> Path | None:
-    """Return the baseline-2025 resources folder if it already exists.
+    """
+    Return the baseline-2025 resources folder if it already exists.
     Used as the source for symlinking year-independent files across baselines.
     """
     if scenario_name is None:
@@ -270,14 +273,18 @@ def _find_reference_resources(scenario_name: str | None) -> Path | None:
 
 
 def _is_project_scenario(scenario_name: str) -> bool:
-    """Return True if this is a project scenario (contains 'project' in the name).
+    """
+    Return True if this is a project scenario (contains 'project' in the name).
     Project scenarios require a different symlink strategy.
     """
     return "project" in scenario_name
 
 
-def _find_same_year_baseline(scenario_name: str, scenario_list: list[str]) -> str | None:
-    """For a project scenario, find the corresponding same-year baseline.
+def _find_same_year_baseline(
+    scenario_name: str, scenario_list: list[str]
+) -> str | None:
+    """
+    For a project scenario, find the corresponding same-year baseline.
 
     Extracts the first 4-digit year found in the scenario name and looks for
     a baseline scenario containing the same year. Returns the baseline name or None.
@@ -297,7 +304,8 @@ def symlink_shared_resources(
     target_dir: Path,
     all_files: bool = False,
 ) -> list[Path]:
-    """Symlink resource files from reference_dir into target_dir.
+    """
+    Symlink resource files from reference_dir into target_dir.
 
     Parameters
     ----------
@@ -346,7 +354,8 @@ def symlink_shared_resources(
 
 
 def select_scenarios(scenario_list):
-    """Let the user select one or more scenarios from the list.
+    """
+    Let the user select one or more scenarios from the list.
 
     Enter 0 or 'all' to select all available scenarios.
     Enter a single number/name or a comma-separated list for multiple selections.
@@ -431,15 +440,13 @@ def select_config() -> tuple[str, str]:
             cfg, scen, label = _CONFIGS[1]
             print(f"  → {label}")
             return cfg, scen
-        print(f"  Please enter 1 or 2.")
+        print("  Please enter 1 or 2.")
 
 
 def select_dry_run_mode() -> bool:
     """Ask whether to do a dry-run and confirmation before each scenario."""
     while True:
-        answer = input(
-            "\nDry-run before each scenario? [Y/n] "
-        ).strip().lower()
+        answer = input("\nDry-run before each scenario? [Y/n] ").strip().lower()
         if answer in ("", "y", "yes"):
             return True
         if answer in ("n", "no"):
@@ -500,12 +507,11 @@ def main():
         # scenario.planning_horizons must match the per-scenario value so that:
         #   1. solve_sector_networks (collect.smk) expands over the correct year
         #   2. add_existing_baseyear.wildcard_constraints matches the baseyear
-        ph = (
-            (scenarios_config.get(scenario_name) or {}).get("scenario") or {}
-        ).get("planning_horizons") or base_config["scenario"]["planning_horizons"]
+        ph = ((scenarios_config.get(scenario_name) or {}).get("scenario") or {}).get(
+            "planning_horizons"
+        ) or base_config["scenario"]["planning_horizons"]
         config_override = (
-            f"'run={{name: {scenario_name}}}'"
-            f" 'scenario={{planning_horizons: {ph}}}'"
+            f"'run={{name: {scenario_name}}}' 'scenario={{planning_horizons: {ph}}}'"
         )
 
         # Symlink strategy:
@@ -517,9 +523,7 @@ def main():
             # Same-year baseline → project: full symlink strategy.
             same_year_baseline = _find_same_year_baseline(scenario_name, scenario_list)
             baseline_resources = (
-                Path("resources") / same_year_baseline
-                if same_year_baseline
-                else None
+                Path("resources") / same_year_baseline if same_year_baseline else None
             )
             if baseline_resources is not None and baseline_resources.is_dir():
                 symlinked = symlink_shared_resources(
@@ -541,10 +545,10 @@ def main():
 
                     # Force metadata creation with --touch for all upstream rules
                     # (those that produce the symlinked files)
-                    print("  Forcing metadata: snakemake --touch for all upstream rules...")
-                    touch_cmd = (
-                        f"snakemake --touch --configfile {base_config_path} --config {config_override}"
+                    print(
+                        "  Forcing metadata: snakemake --touch for all upstream rules..."
                     )
+                    touch_cmd = f"snakemake --touch --configfile {base_config_path} --config {config_override}"
                     os.system(touch_cmd)
             else:
                 if same_year_baseline:
@@ -553,8 +557,12 @@ def main():
                         f"— running full pipeline for project scenario."
                     )
                 else:
-                    print("  No matching same-year baseline found — running full pipeline.")
-        elif reference_resources is not None and reference_resources != target_resources:
+                    print(
+                        "  No matching same-year baseline found — running full pipeline."
+                    )
+        elif (
+            reference_resources is not None and reference_resources != target_resources
+        ):
             # Cross-year: symlink year-independent files from the 2025 reference.
             symlinked = symlink_shared_resources(reference_resources, target_resources)
             if symlinked:
@@ -600,7 +608,9 @@ def main():
             and target_resources.exists()
         ):
             reference_resources = target_resources
-            print(f"  Set '{scenario_name}' as symlink reference for subsequent scenarios.")
+            print(
+                f"  Set '{scenario_name}' as symlink reference for subsequent scenarios."
+            )
 
     print("\n" + "=" * 60)
     print("All selected scenarios have been processed.")

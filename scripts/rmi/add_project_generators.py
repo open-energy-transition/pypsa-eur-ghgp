@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: Open Energy Transition gGmbH and contributors to PyPSA-Eur <https://github.com/pypsa/pypsa-eur>
 #
 # SPDX-License-Identifier: MIT
-"""Add an additional renewable energy project to the brownfield network.
+"""
+Add an additional renewable energy project to the brownfield network.
 
 For baseline scenarios (``project.enable: false``), the network is passed
 through unchanged.  For project scenarios (``project.enable: true``), the
@@ -57,7 +58,8 @@ def add_project_generators(
     sizes_mw: list[float] | None = None,
     countries: list[str] | None = None,
 ) -> None:
-    """Insert project generators defined in *project_file* into *n*.
+    """
+    Insert project generators defined in *project_file* into *n*.
 
     Parameters
     ----------
@@ -91,14 +93,19 @@ def add_project_generators(
         logger.warning(
             "No project generators match the active filters "
             "(carriers=%s, sizes_mw=%s, countries=%s). Nothing added.",
-            carriers, sizes_mw, countries,
+            carriers,
+            sizes_mw,
+            countries,
         )
         return
 
     logger.info(
         "Adding %d project generator(s) after filtering "
         "(carriers=%s, sizes_mw=%s, countries=%s).",
-        len(project_gens), carriers, sizes_mw, countries,
+        len(project_gens),
+        carriers,
+        sizes_mw,
+        countries,
     )
 
     for _, row in project_gens.iterrows():
@@ -116,9 +123,7 @@ def add_project_generators(
             # Direct bus reference
             bus = country_or_bus
             if n.buses.at[bus, "carrier"] != "AC":
-                logger.warning(
-                    "Bus '%s' is not an AC bus. Skipping row.", bus
-                )
+                logger.warning("Bus '%s' is not an AC bus. Skipping row.", bus)
                 continue
         else:
             # Country code → pick the first AC bus for that country

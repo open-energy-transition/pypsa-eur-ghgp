@@ -228,7 +228,7 @@ if __name__ == "__main__":
             run="test-2024-3H-1M-DE",
             configfiles=["config/test/config.rmi.yaml"],
             planning_horizon=2025,
-            )
+        )
 
     configure_logging(snakemake)
     set_scenario_config(snakemake)
