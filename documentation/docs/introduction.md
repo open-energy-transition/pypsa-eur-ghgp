@@ -2,8 +2,8 @@
 
 The goal of this project is to calculate, by means of PyPSA-Eur, a retrospective consequential performance metric in the context of the [Greenhouse Gas Protocol (GHGP)](https://ghgprotocol.org/). The retrospective approach implied to use PyPSA-Eur to simulate past years, but no additional validation against actual historical dispatch has been required.
 
->[!NOTE]
-> Currently, the project repository allows the user to generate traditional PyPSA-Eur results, whereas the calculation of the actual performance metric will be added in a later stage.
+!!! note
+    Currently, the project repository allows the user to generate traditional PyPSA-Eur results, whereas the calculation of the actual performance metric will be added in a later stage.
 
 ---
 
@@ -49,13 +49,13 @@ Once installed, activate your pixi environment in a terminal session:
 pixi shell
 ```
 
->[!NOTE]
->`pixi` will create a distinct environment in every project directory, even if you have identical copies of a project cloned locally.
->As there is a common system-level package cache, `pixi` efficiently conserves disk space in such cases.
+!!! note
+    `pixi` will create a distinct environment in every project directory, even if you have identical copies of a project cloned locally.
+    As there is a common system-level package cache, `pixi` efficiently conserves disk space in such cases.
 
->[!TIP]
->If `pixi` isn't working, you can install from one of the fallback `conda` environment files found in `envs`.
->For more details see [the PyPSA-Eur installation guide](https://pypsa-eur.readthedocs.io/en/latest/installation.html).
+!!! tip
+    If `pixi` isn't working, you can install from one of the fallback `conda` environment files found in `envs`.
+    For more details see [the PyPSA-Eur installation guide](https://pypsa-eur.readthedocs.io/en/latest/installation.html).
 
 ---
 

@@ -706,10 +706,10 @@
 
 <h1 id="introduction">Introduction</h1>
 <p>The goal of this project is to calculate, by means of PyPSA-Eur, a retrospective consequential performance metric in the context of the <a href="https://ghgprotocol.org/">Greenhouse Gas Protocol (GHGP)</a>. The retrospective approach implied to use PyPSA-Eur to simulate past years, but no additional validation against actual historical dispatch has been required.</p>
-<blockquote>
-<p>[!NOTE]
-Currently, the project repository allows the user to generate traditional PyPSA-Eur results, whereas the calculation of the actual performance metric will be added in a later stage.</p>
-</blockquote>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Currently, the project repository allows the user to generate traditional PyPSA-Eur results, whereas the calculation of the actual performance metric will be added in a later stage.</p>
+</div>
 <hr />
 <h2 id="project-context">Project context</h2>
 <p>This project lies within the broader discussion within the GHGP framework about the use of consequential performance metrics in GHG indirect emission report of companies. In this regard, the GHGP convened a subworking group aiming to:</p>
@@ -747,14 +747,16 @@ Currently, the project repository allows the user to generate traditional PyPSA-
 Once installed, activate your pixi environment in a terminal session:</p>
 <pre><code class="language-sh">pixi shell
 </code></pre>
-<blockquote>
-<p>[!NOTE]
-<code>pixi</code> will create a distinct environment in every project directory, even if you have identical copies of a project cloned locally.
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code>pixi</code> will create a distinct environment in every project directory, even if you have identical copies of a project cloned locally.
 As there is a common system-level package cache, <code>pixi</code> efficiently conserves disk space in such cases.</p>
-<p>[!TIP]
-If <code>pixi</code> isn't working, you can install from one of the fallback <code>conda</code> environment files found in <code>envs</code>.
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>If <code>pixi</code> isn't working, you can install from one of the fallback <code>conda</code> environment files found in <code>envs</code>.
 For more details see <a href="https://pypsa-eur.readthedocs.io/en/latest/installation.html">the PyPSA-Eur installation guide</a>.</p>
-</blockquote>
+</div>
 <hr />
 <h2 id="run-scenarios">Run scenarios</h2>
 <p>The script <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/run/backcasting_run.py"><code>run/backcasting_run.py</code></a> has been developed to interactively and automatically run the scenarios available in <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/scenarios.rmi.yaml"><code>config/scenarios.rmi.yaml</code></a>. The script is useful as it identifies the many resources that are common across the scenarios, reducing the number of rules included in the snakemake workflows.</p>
@@ -825,7 +827,7 @@ For more details see <a href="https://pypsa-eur.readthedocs.io/en/latest/install
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs.sticky", "navigation.sections", "navigation.path", "navigation.indexes", "toc.follow", "navigation.top"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.copy", "navigation.tabs.sticky", "navigation.sections", "navigation.path", "navigation.indexes", "toc.follow", "navigation.top"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
       <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>

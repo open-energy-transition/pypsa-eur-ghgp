@@ -25,6 +25,7 @@ theme:
     - yaml
     - rust
   features:
+    - content.code.copy
     - navigation.tabs.sticky
     - navigation.sections
     - navigation.path
@@ -42,6 +43,7 @@ nav:
     - Other code changes: features/other-code-changes.md
 
 markdown_extensions:
+  - admonition
   - material.extensions.preview:
       configurations:
         - targets:
