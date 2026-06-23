@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#data-availability" class="md-skip">
+        <a href="#calibration" class="md-skip">
           Skip to content
         </a>
       
@@ -459,6 +459,18 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#data-availability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data availability
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data availability">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#1-synthetic-load-data" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -468,8 +480,8 @@
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
+        
+          <li class="md-nav__item">
   <a href="#2-jrc-idees" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -479,8 +491,8 @@
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
+        
+          <li class="md-nav__item">
   <a href="#3-nuclear-p_max_pu" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -488,6 +500,50 @@
       
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#calibration_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calibration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Calibration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-irenastat-existing-capacities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1) IRENASTAT existing capacities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-other-existing-capacities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2) Other existing capacities
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -590,6 +646,18 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#data-availability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data availability
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data availability">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#1-synthetic-load-data" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -599,8 +667,8 @@
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
+        
+          <li class="md-nav__item">
   <a href="#2-jrc-idees" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -610,8 +678,8 @@
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
+        
+          <li class="md-nav__item">
   <a href="#3-nuclear-p_max_pu" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -619,6 +687,50 @@
       
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#calibration_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calibration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Calibration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-irenastat-existing-capacities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1) IRENASTAT existing capacities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-other-existing-capacities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2) Other existing capacities
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -690,6 +802,7 @@
   
 
 
+<h1 id="calibration">Calibration</h1>
 <p>While developing the model and adapting it to simulate the historical period 2020-2025, some calibration issues have been faced, which can be classifed in two categories:</p>
 <ul>
 <li><strong>Data availability:</strong> some default input data are not available for recent past years (e.g., 2024 and 2025).</li>
@@ -700,8 +813,9 @@
 <p>[!NOTE]
 This is not meant to be a comprehensive description of the calibration needs of PyPSA-Eur, as it is based on this specific project. Also, the latter did not involve any direct calibration activities. Instead, the description below is meant to be a starting point to investigate whether, and to which extent, further calibrating PyPSA-Eur might be useful for the PyPSA-EURcommunity. In this regard, the topic has been raised in the <a href="https://discord.com/invite/AnuJBk23FU">discord server</a>.</p>
 </blockquote>
-<h1 id="data-availability">Data availability</h1>
-<h2 id="1-synthetic-load-data">1) Synthetic load data</h2>
+<hr />
+<h2 id="data-availability">Data availability</h2>
+<h3 id="1-synthetic-load-data">1) Synthetic load data</h3>
 <p><strong>Availability</strong>: <strong>until 2023 (included)</strong> ==&gt; if snapshots year &gt; 2023, a <code>KeyError</code> is raised.</p>
 <p><strong>Script/function</strong>: <a href="https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/build_electricity_demand.py#L312-L316"><code>build_electricity_demand.py</code></a>.</p>
 <p><strong>Error</strong>: This part of code:</p>
@@ -733,7 +847,7 @@ else:
     synthetic_load = synthetic_load.loc[available_snapshots, countries]
     load = load.combine_first(synthetic_load)
 </code></pre>
-<h2 id="2-jrc-idees">2) JRC IDEES</h2>
+<h3 id="2-jrc-idees">2) JRC IDEES</h3>
 <p><strong>Availability</strong>: <strong>until 2023 (included)</strong> ==&gt; if snapshots year &gt; 2023, a <code>KeyError</code> is raised only for the heating sector.</p>
 <p><strong>Script/function</strong>: <a href="https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/build_population_weighted_energy_totals.py#L32-L43"><code>build_population_weighted_energy_totals.py</code></a>.</p>
 <p><strong>Error</strong>: This part of code:</p>
@@ -780,7 +894,7 @@ if snakemake.wildcards.kind == &quot;heat&quot;:
 
 totals = totals.loc[idx[:, data_years], :].groupby(&quot;country&quot;).mean()
 </code></pre>
-<h2 id="3-nuclear-p_max_pu">3) Nuclear <code>p_max_pu</code></h2>
+<h3 id="3-nuclear-p_max_pu">3) Nuclear <code>p_max_pu</code></h3>
 <p><strong>Availability</strong>: <strong>until 2024 (included)</strong> ==&gt; if snapshots year &gt; 2024, a <code>KeyError</code> is raised.</p>
 <p><strong>Script/function</strong>: <a href="https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/add_electricity.py#L682-L687"><code>add_electricity.py/attach_conventional_generators()</code></a>.</p>
 <p><strong>Error</strong>: This part of code:</p>
@@ -804,8 +918,9 @@ except (ValueError, TypeError):
 except (ValueError, TypeError):
     values = df.iloc[:, -1]
 </code></pre>
-<h1 id="calibration">Calibration</h1>
-<h2 id="1-irenastat-existing-capacities">1) IRENASTAT existing capacities</h2>
+<hr />
+<h2 id="calibration_1">Calibration</h2>
+<h3 id="1-irenastat-existing-capacities">1) IRENASTAT existing capacities</h3>
 <p><strong>Issue</strong>: existing capacities added in years &gt; calibration year are accounted for when considering existing solar and wind capacities.</p>
 <p><strong>Script/function</strong>: <a href="https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/add_existing_baseyear.py#L71"><code>add_existing_baseyear.py/add_existing_renewables()</code></a>.</p>
 <p><strong>Example</strong>: calibration year=2023, carrier=<code>solar</code>, country=<code>DE</code>
@@ -828,7 +943,7 @@ When analyzing the network <code>n</code> after <code>add_existing_baseyear</cod
 n.generators[(n.generators.index.str.contains(&quot;DE&quot;)) &amp; (n.generators.carrier==&quot;solar&quot;)].build_year.unique()
 &gt;array([2023, 2000, 2005, 2010, 2015, 2020])
 </code></pre>
-<h2 id="2-other-existing-capacities">2) Other existing capacities</h2>
+<h3 id="2-other-existing-capacities">2) Other existing capacities</h3>
 <p><strong>Issue</strong>: underestimation of actual existing capacities for those power plants from PPM dataset, with unkonwn <code>DateOut</code>. In this case, the latter is estimated by using the <code>lifetime</code> from the technology costs dataset:  if the estimated <code>DateOut &lt; baseyear</code>, those power plants are filtered out, even though they might be still operating in the <code>baseyear</code>.</p>
 <p><strong>Script/function</strong>: <a href="https://github.com/PyPSA/pypsa-eur/blob/f124355cfa4987dbab3335dbdb22aa6de57b3ff6/scripts/add_existing_baseyear.py#L153">`add_existing_baseyear.py/add_power_capacities_installed_before_baseyear()</a>.</p>
 <p>In particular:</p>

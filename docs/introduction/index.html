@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#project-context" class="md-skip">
+        <a href="#introduction" class="md-skip">
           Skip to content
         </a>
       
@@ -292,6 +292,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -308,6 +326,86 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#project-context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project context
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project-assumptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project assumptions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-scenarios" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run scenarios
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Run scenarios">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How it works
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -511,6 +609,75 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#project-context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project context
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project-assumptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project assumptions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-scenarios" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run scenarios
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Run scenarios">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How it works
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -537,12 +704,14 @@
   
 
 
+<h1 id="introduction">Introduction</h1>
 <p>The goal of this project is to calculate, by means of PyPSA-Eur, a retrospective consequential performance metric in the context of the <a href="https://ghgprotocol.org/">Greenhouse Gas Protocol (GHGP)</a>. The retrospective approach implied to use PyPSA-Eur to simulate past years, but no additional validation against actual historical dispatch has been required.</p>
 <blockquote>
 <p>[!NOTE]
 Currently, the project repository allows the user to generate traditional PyPSA-Eur results, whereas the calculation of the actual performance metric will be added in a later stage.</p>
 </blockquote>
-<h1 id="project-context">Project context</h1>
+<hr />
+<h2 id="project-context">Project context</h2>
 <p>This project lies within the broader discussion within the GHGP framework about the use of consequential performance metrics in GHG indirect emission report of companies. In this regard, the GHGP convened a subworking group aiming to:</p>
 <ul>
 <li>
@@ -557,7 +726,8 @@ Currently, the project repository allows the user to generate traditional PyPSA-
 </li>
 </ul>
 <p>The application of a <strong>consequential</strong> accounting method requires a counterfactual representation of what would have happened without the project. Also, it is recommended that such a method is applied with a <strong>retrospective</strong> approach (i.e., looking backword at the historical period), to provide a standardized, practicable, and scientifically validated approach to generate a useful approximation of a company consequential impact.</p>
-<h1 id="project-assumptions">Project assumptions</h1>
+<hr />
+<h2 id="project-assumptions">Project assumptions</h2>
 <p>The need for a retrospective metric implied to develop a model capable to simulate the historical period, i.e., a <strong>dispatch-only</strong> model. In particular, the historical period involved yearly simulations <strong>from 2020 to 2025</strong>. Then, to balance spatial and temporal resolution with computational efficiency, the model scope is defined as follows:</p>
 <ul>
 <li>Spatial Scope:<ul>
@@ -568,7 +738,8 @@ Currently, the project repository allows the user to generate traditional PyPSA-
 <li>Temporal resolution: 3-hours interval.</li>
 <li>Sectoral Scope: the model is limited to the electricity sector.</li>
 </ul>
-<h1 id="installation">Installation</h1>
+<hr />
+<h2 id="installation">Installation</h2>
 <p>Clone the repository:</p>
 <pre><code class="language-sh">git clone https://github.com/open-energy-transition/pypsa-eur-ghgp
 </code></pre>
@@ -584,10 +755,11 @@ As there is a common system-level package cache, <code>pixi</code> efficiently c
 If <code>pixi</code> isn't working, you can install from one of the fallback <code>conda</code> environment files found in <code>envs</code>.
 For more details see <a href="https://pypsa-eur.readthedocs.io/en/latest/installation.html">the PyPSA-Eur installation guide</a>.</p>
 </blockquote>
-<h1 id="run-scenarios">Run scenarios</h1>
+<hr />
+<h2 id="run-scenarios">Run scenarios</h2>
 <p>The script <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/run/backcasting_run.py"><code>run/backcasting_run.py</code></a> has been developed to interactively and automatically run the scenarios available in <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/scenarios.rmi.yaml"><code>config/scenarios.rmi.yaml</code></a>. The script is useful as it identifies the many resources that are common across the scenarios, reducing the number of rules included in the snakemake workflows.</p>
 <p>The interactive steps are listed below, whereas for more details on model configurations and the script see, respectively, sections <a href="../configuration/">Configuration</a> and <a href="../features/scenarios/">Scenarios</a>.</p>
-<h2 id="how-it-works">How it works</h2>
+<h3 id="how-it-works">How it works</h3>
 <p>After activating the project environment (i.e., <code>pixi shell</code> if using the default environment), navigate to the root directory of the project, open the terminal, and execute the script:</p>
 <pre><code class="language-bash">python run/backcasting_run.py
 </code></pre>

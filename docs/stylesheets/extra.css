@@ -35,3 +35,13 @@
 .md-content__inner.md-typeset h6 + ul {
   margin-top: 0 !important;
 }
+
+/* Handle consecutive headings (h1→h2, h2→h3, etc) */
+.md-content__inner.md-typeset h1 + h2,
+.md-content__inner.md-typeset h1 + h3,
+.md-content__inner.md-typeset h1 + h4,
+.md-content__inner.md-typeset h2 + h3,
+.md-content__inner.md-typeset h2 + h4,
+.md-content__inner.md-typeset h3 + h4 {
+  margin-top: 0.35em !important;
+}

@@ -1,3 +1,5 @@
+# Calibration
+
 While developing the model and adapting it to simulate the historical period 2020-2025, some calibration issues have been faced, which can be classifed in two categories:
 
 * **Data availability:** some default input data are not available for recent past years (e.g., 2024 and 2025).
@@ -5,11 +7,13 @@ While developing the model and adapting it to simulate the historical period 202
 
 Details and examples of such issues, alongside the solutions implemented in the project to partially overcome them, are provided below.
 
->[!NOTE]
+> [!NOTE]
 > This is not meant to be a comprehensive description of the calibration needs of PyPSA-Eur, as it is based on this specific project. Also, the latter did not involve any direct calibration activities. Instead, the description below is meant to be a starting point to investigate whether, and to which extent, further calibrating PyPSA-Eur might be useful for the PyPSA-EURcommunity. In this regard, the topic has been raised in the [discord server](https://discord.com/invite/AnuJBk23FU).
 
-# Data availability
-## 1) Synthetic load data
+---
+
+## Data availability
+### 1) Synthetic load data
 **Availability**: **until 2023 (included)** ==> if snapshots year > 2023, a `KeyError` is raised.
 
 **Script/function**: [`build_electricity_demand.py`](https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/build_electricity_demand.py#L312-L316).
@@ -45,7 +49,7 @@ else:
     load = load.combine_first(synthetic_load)
 ```
 
-## 2) JRC IDEES
+### 2) JRC IDEES
 **Availability**: **until 2023 (included)** ==> if snapshots year > 2023, a `KeyError` is raised only for the heating sector.
 
 **Script/function**: [`build_population_weighted_energy_totals.py`](https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/build_population_weighted_energy_totals.py#L32-L43).
@@ -96,7 +100,7 @@ if snakemake.wildcards.kind == "heat":
 totals = totals.loc[idx[:, data_years], :].groupby("country").mean()
 ```
 
-## 3) Nuclear `p_max_pu`
+### 3) Nuclear `p_max_pu`
 **Availability**: **until 2024 (included)** ==> if snapshots year > 2024, a `KeyError` is raised.
 
 **Script/function**: [`add_electricity.py/attach_conventional_generators()`](https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/add_electricity.py#L682-L687).
@@ -124,8 +128,10 @@ except (ValueError, TypeError):
     values = df.iloc[:, -1]
 ```
 
-# Calibration
-## 1) IRENASTAT existing capacities
+---
+
+## Calibration
+### 1) IRENASTAT existing capacities
 **Issue**: existing capacities added in years > calibration year are accounted for when considering existing solar and wind capacities.
 
 **Script/function**: [`add_existing_baseyear.py/add_existing_renewables()`](https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/add_existing_baseyear.py#L71).
@@ -158,7 +164,7 @@ n.generators[(n.generators.index.str.contains("DE")) & (n.generators.carrier=="s
 >array([2023, 2000, 2005, 2010, 2015, 2020])
 ```
 
-## 2) Other existing capacities
+### 2) Other existing capacities
 **Issue**: underestimation of actual existing capacities for those power plants from PPM dataset, with unkonwn `DateOut`. In this case, the latter is estimated by using the `lifetime` from the technology costs dataset:  if the estimated `DateOut < baseyear`, those power plants are filtered out, even though they might be still operating in the `baseyear`.
 
 **Script/function**: [`add_existing_baseyear.py/add_power_capacities_installed_before_baseyear()](https://github.com/PyPSA/pypsa-eur/blob/f124355cfa4987dbab3335dbdb22aa6de57b3ff6/scripts/add_existing_baseyear.py#L153).

@@ -1,9 +1,13 @@
+# Introduction
+
 The goal of this project is to calculate, by means of PyPSA-Eur, a retrospective consequential performance metric in the context of the [Greenhouse Gas Protocol (GHGP)](https://ghgprotocol.org/). The retrospective approach implied to use PyPSA-Eur to simulate past years, but no additional validation against actual historical dispatch has been required.
 
 >[!NOTE]
 > Currently, the project repository allows the user to generate traditional PyPSA-Eur results, whereas the calculation of the actual performance metric will be added in a later stage.
 
-# Project context
+---
+
+## Project context
 
 This project lies within the broader discussion within the GHGP framework about the use of consequential performance metrics in GHG indirect emission report of companies. In this regard, the GHGP convened a subworking group aiming to:
 
@@ -16,7 +20,9 @@ This project lies within the broader discussion within the GHGP framework about 
 
 The application of a **consequential** accounting method requires a counterfactual representation of what would have happened without the project. Also, it is recommended that such a method is applied with a **retrospective** approach (i.e., looking backword at the historical period), to provide a standardized, practicable, and scientifically validated approach to generate a useful approximation of a company consequential impact.
 
-# Project assumptions
+---
+
+## Project assumptions
 
 The need for a retrospective metric implied to develop a model capable to simulate the historical period, i.e., a **dispatch-only** model. In particular, the historical period involved yearly simulations **from 2020 to 2025**. Then, to balance spatial and temporal resolution with computational efficiency, the model scope is defined as follows:
 
@@ -26,7 +32,9 @@ The need for a retrospective metric implied to develop a model capable to simula
 * Temporal resolution: 3-hours interval.
 * Sectoral Scope: the model is limited to the electricity sector.
 
-# Installation
+---
+
+## Installation
 
 Clone the repository:
 
@@ -49,13 +57,15 @@ pixi shell
 >If `pixi` isn't working, you can install from one of the fallback `conda` environment files found in `envs`.
 >For more details see [the PyPSA-Eur installation guide](https://pypsa-eur.readthedocs.io/en/latest/installation.html).
 
-# Run scenarios
+---
+
+## Run scenarios
 
 The script [`run/backcasting_run.py`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/run/backcasting_run.py) has been developed to interactively and automatically run the scenarios available in [`config/scenarios.rmi.yaml`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/scenarios.rmi.yaml). The script is useful as it identifies the many resources that are common across the scenarios, reducing the number of rules included in the snakemake workflows.
 
 The interactive steps are listed below, whereas for more details on model configurations and the script see, respectively, sections [Configuration](configuration.md) and [Scenarios](features/scenarios.md).
 
-## How it works
+### How it works
 After activating the project environment (i.e., `pixi shell` if using the default environment), navigate to the root directory of the project, open the terminal, and execute the script:
 ```bash
 python run/backcasting_run.py
