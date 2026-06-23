@@ -38,7 +38,7 @@ nav:
   - Configuration: configuration.md
   - Features:
     - Model calibration: features/calibration.md
-    - Project scenarios: features/project-scenarios.md
+    - Scenarios: features/scenarios.md
 
 markdown_extensions:
   - material.extensions.preview:

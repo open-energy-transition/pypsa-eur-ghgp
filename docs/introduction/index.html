@@ -433,14 +433,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../features/project-scenarios/" class="md-nav__link">
+      <a href="../features/scenarios/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Project scenarios
+    Scenarios
   
 
     
@@ -509,7 +509,8 @@
 
 <p>The goal of this project is to calculate, by means of PyPSA-Eur, a retrospective consequential performance metric in the context of the <a href="https://ghgprotocol.org/">Greenhouse Gas Protocol (GHGP)</a>. The retrospective approach implied to use PyPSA-Eur to simulate past years, but no additional validation against actual historical dispatch has been required.</p>
 <blockquote>
-<p><strong>Note</strong>: currently, the project repository allows the users to generate traditional PyPSA-Eur results, whereas the calculation of the actual performance metric will be added in a later stage.</p>
+<p>[!NOTE]
+Currently, the project repository allows the user to generate traditional PyPSA-Eur results, whereas the calculation of the actual performance metric will be added in a later stage.</p>
 </blockquote>
 <h1 id="project-context">Project context</h1>
 <p>This project lies within the broader discussion within the GHGP framework about the use of consequential performance metrics in GHG indirect emission report of companies. In this regard, the GHGP convened a subworking group aiming to:</p>
@@ -522,20 +523,73 @@
 </ul>
 </li>
 <li>
-<p>Explore whether alternative or additional scope 2-related metrics should be included in a GHG emissions report.</p>
+<p>Explore whether alternative or additional scope 2-related metrics should be included in a GHG emission report.</p>
 </li>
 </ul>
-<p>The application of a <strong>consequential</strong> accounting method requires a counterfactual representation of what would have happened without the project. Also, it is recommended that such a method is applied with a <strong>retrospective</strong> approach (i.e., looking backword at the historical period), to provide a standardized, practicable, and scientifically validated approach to generate a useful retrospective approximation of a company comprehensive consequential impact.</p>
+<p>The application of a <strong>consequential</strong> accounting method requires a counterfactual representation of what would have happened without the project. Also, it is recommended that such a method is applied with a <strong>retrospective</strong> approach (i.e., looking backword at the historical period), to provide a standardized, practicable, and scientifically validated approach to generate a useful approximation of a company consequential impact.</p>
 <h1 id="project-assumptions">Project assumptions</h1>
-<p>[ongoing]
-Dispatch only model:
-- Spatial scope:
-- Time scope:
-- Sectorial scope:</p>
+<p>The need for a retrospective metric implied to develop a model capable to simulate the historical period, i.e., a <strong>dispatch-only</strong> model. In particular, the historical period involved yearly simulations <strong>from 2020 to 2025</strong>. Then, to balance spatial and temporal resolution with computational efficiency, the model scope is defined as follows:</p>
+<ul>
+<li>Spatial Scope:<ul>
+<li>Geography: 34 countries (as the <a href="https://pypsa-eur.readthedocs.io/en/latest/configuration.html#countries">default PyPSA-Eur configuration</a>).</li>
+<li>Resolution: 39 nodes (ensuring that each country is represented by at least one node).</li>
+</ul>
+</li>
+<li>Temporal resolution: 3-hours interval.</li>
+<li>Sectoral Scope: the model is limited to the electricity sector.</li>
+</ul>
 <h1 id="installation">Installation</h1>
-<p>n/a</p>
+<p>Clone the repository:</p>
+<pre><code class="language-sh">git clone https://github.com/open-energy-transition/pypsa-eur-ghgp
+</code></pre>
+<p>You need <a href="https://pixi.sh/latest/">pixi</a> to run the analysis.
+Once installed, activate your pixi environment in a terminal session:</p>
+<pre><code class="language-sh">pixi shell
+</code></pre>
+<blockquote>
+<p>[!NOTE]
+<code>pixi</code> will create a distinct environment in every project directory, even if you have identical copies of a project cloned locally.
+As there is a common system-level package cache, <code>pixi</code> efficiently conserves disk space in such cases.</p>
+<p>[!TIP]
+If <code>pixi</code> isn't working, you can install from one of the fallback <code>conda</code> environment files found in <code>envs</code>.
+For more details see <a href="https://pypsa-eur.readthedocs.io/en/latest/installation.html">the PyPSA-Eur installation guide</a>.</p>
+</blockquote>
+<h2 id="extra-soft-fork-dependencies">Extra soft-fork dependencies</h2>
+<p>If you add dependencies to your project, we recommend you add them to a <a href="https://pixi.sh/v0.21.1/features/multi_environment/#feature-environment-set-definitions">new <code>pixi</code> environment</a>.
+For instance, if you need access to <code>plotly</code>, want to pin the version of gurobi you are using, and want to add a PyPI dependency:</p>
+<pre><code class="language-sh">pixi add -f {{ project_short_name }} &quot;gurobi&lt;13&quot; &quot;plotly&quot;
+pixi add -f {{ project_short_name }} --pypi pypsa-explorer
+</code></pre>
+<p>This will create these entries in your <code>pixi.toml</code></p>
+<pre><code class="language-toml">[feature.{{ project_short_name }}.pypi-dependencies]
+pypsa-explorer = &quot;*&quot;
+
+[feature.{{ project_short_name }}.dependencies]
+gurobi = &quot;&lt;13&quot;
+plotly = &quot;*&quot;
+</code></pre>
+<p>Then, you can create an environment from this feature in <code>pixi.toml</code>:</p>
+<pre><code class="language-toml">[environments]
+...
+{{ project_short_name }} = [{{ project_short_name }}]
+</code></pre>
+<p>These dependencies will be combined with the core PyPSA-Eur dependencies and can be accessed by calling:</p>
+<pre><code class="language-sh">pixi shell -e {{ project_short_name }}
+</code></pre>
 <h1 id="run-scenarios">Run scenarios</h1>
-<p>n/a</p>
+<p>The script <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/run/backcasting_run.py"><code>run/backcasting_run.py</code></a> has been developed to interactively and automatically run the scenarios available in <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/scenarios.rmi.yaml"><code>config/scenarios.rmi.yaml</code></a>. The script is useful as it identifies the many resources that are common across the scenarios, reducing the number of rules included in the snakemake workflows.</p>
+<p>The interactive steps are listed below, whereas for more details on model configurations and the script see, respectively, sections <a href="../configuration/">Configuration</a> and <a href="../features/scenarios/">Scenarios</a>.</p>
+<h2 id="how-it-works">How it works</h2>
+<p>After activating the project environment (i.e., <code>pixi shell</code> if using the default environment), navigate to the root directory of the project, open the terminal, and execute the script:</p>
+<pre><code class="language-bash">python run/backcasting_run.py
+</code></pre>
+<p>The script guides the user through a series of interactive prompts to configure the run(s):</p>
+<ol>
+<li><strong>Select configuration:</strong> chose one from the available configurations (e.g., full or test model). Each configuration is made of a base configuration file (e.g., <code>config/config.rmi.yaml</code>), containing all the common settings across the available scenarios, and a scenario configuration (e.g., <code>config/scenarios.rmi.yaml</code>), containing the specific scenario settings.</li>
+<li><strong>Select scenario(s):</strong> chose the scenario(s) to run from the available ones, including the possibility to run them all.</li>
+<li><strong>Select the number of CPUs:</strong> chose how many cores to use.</li>
+<li><strong>Select dry-run:</strong> chose whether to dry-run or not before each scenario. The dry-run allows the user to first look at the rules to be run without actually run the snakemake workflow.</li>
+</ol>
 
 
 
