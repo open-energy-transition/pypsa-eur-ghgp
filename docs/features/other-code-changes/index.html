@@ -9,10 +9,8 @@
       
       
       
-        <link rel="prev" href="../../configuration/">
+        <link rel="prev" href="../scenarios/">
       
-      
-        <link rel="next" href="../scenarios/">
       
       
         
@@ -23,7 +21,7 @@
     
     
       
-        <title>Model calibration - GHGP-Retrospective consequential performance metric with PyPSA-Eur</title>
+        <title>Other code changes - GHGP-Retrospective consequential performance metric with PyPSA-Eur</title>
       
     
     
@@ -75,11 +73,6 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
-        
-        <a href="#data-availability" class="md-skip">
-          Skip to content
-        </a>
-      
     </div>
     <div data-md-component="announce">
       
@@ -111,7 +104,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Model calibration
+              Other code changes
             
           </span>
         </div>
@@ -396,37 +389,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Model calibration
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../calibration/" class="md-nav__link">
         
   
   
@@ -442,59 +408,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#1-synthetic-load-data" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1) Synthetic load data
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#2-jrc-idees" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2) JRC IDEES
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#3-nuclear-p_max_pu" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3) Nuclear p_max_pu
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -532,10 +445,17 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../other-code-changes/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -551,6 +471,7 @@
   
 
       </a>
+      
     </li>
   
 
@@ -580,49 +501,6 @@
   
   
   
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#1-synthetic-load-data" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1) Synthetic load data
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#2-jrc-idees" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2) JRC IDEES
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#3-nuclear-p_max_pu" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3) Nuclear p_max_pu
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
   
 </nav>
                   </div>
@@ -665,7 +543,7 @@
     
     
       <li class="md-path__item">
-        <a href="./" class="md-path__link">
+        <a href="../calibration/" class="md-path__link">
           
   <span class="md-ellipsis">
     Features
@@ -690,164 +568,9 @@
   
 
 
-<p>While developing the model and adapting it to simulate the historical period 2020-2025, some calibration issues have been faced, which can be classifed in two categories:</p>
-<ul>
-<li><strong>Data availability:</strong> some default input data are not available for recent past years (e.g., 2024 and 2025).</li>
-<li><strong>Calibration:</strong> resulting default existing capacities for some carriers in past year are not aligned with historical data.</li>
-</ul>
-<p>Details and examples of such issues, alongside the solutions implemented in the project to partially overcome them, are provided below.</p>
-<blockquote>
-<p>[!NOTE]
-This is not meant to be a comprehensive description of the calibration needs of PyPSA-Eur, as it is based on this specific project. Also, the latter did not involve any direct calibration activities. Instead, the description below is meant to be a starting point to investigate whether, and to which extent, further calibrating PyPSA-Eur might be useful for the PyPSA-EURcommunity. In this regard, the topic has been raised in the <a href="https://discord.com/invite/AnuJBk23FU">discord server</a>.</p>
-</blockquote>
-<h1 id="data-availability">Data availability</h1>
-<h2 id="1-synthetic-load-data">1) Synthetic load data</h2>
-<p><strong>Availability</strong>: <strong>until 2023 (included)</strong> ==&gt; if snapshots year &gt; 2023, a <code>KeyError</code> is raised.</p>
-<p><strong>Script/function</strong>: <a href="https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/build_electricity_demand.py#L312-L316"><code>build_electricity_demand.py</code></a>.</p>
-<p><strong>Error</strong>: This part of code:</p>
-<pre><code class="language-python">synthetic_load = pd.read_csv(fn, index_col=0, parse_dates=True)
-countries = list(set(countries) - set([&quot;UA&quot;, &quot;MD&quot;, &quot;XK&quot;, &quot;CY&quot;, &quot;MT&quot;]))
-synthetic_load = synthetic_load.loc[snapshots, countries] # ← KeyError when snapshots &gt; 2023
-load = load.combine_first(synthetic_load)
-</code></pre>
-<p>would generate this error:</p>
-<blockquote>
-<p>raise KeyError(f"None of [{key}] are in the [{axis_name}]")</p>
-</blockquote>
-<p><strong>Draft potential solution</strong>: substitute the code above with:</p>
-<pre><code class="language-python">synthetic_load = pd.read_csv(fn, index_col=0, parse_dates=True)
-countries = list(set(countries) - set([&quot;UA&quot;, &quot;MD&quot;, &quot;XK&quot;, &quot;CY&quot;, &quot;MT&quot;]))
-available_snapshots = synthetic_load.index.intersection(snapshots)
-if available_snapshots.empty:
-    logger.warning(
-        &quot;Synthetic load data does not cover the requested snapshots &quot;
-        f&quot;({snapshots[0]} – {snapshots[-1]}). Skipping supplement step.&quot;
-    )
-else:
-    if len(available_snapshots) &lt; len(snapshots):
-        missing = len(snapshots) - len(available_snapshots)
-        logger.warning(
-            f&quot;Synthetic load data covers only {len(available_snapshots)}/{len(snapshots)} &quot;
-            f&quot;snapshots ({missing} timestamps missing, will not be supplemented).&quot;
-        )
-    synthetic_load = synthetic_load.loc[available_snapshots, countries]
-    load = load.combine_first(synthetic_load)
-</code></pre>
-<h2 id="2-jrc-idees">2) JRC IDEES</h2>
-<p><strong>Availability</strong>: <strong>until 2023 (included)</strong> ==&gt; if snapshots year &gt; 2023, a <code>KeyError</code> is raised only for the heating sector.</p>
-<p><strong>Script/function</strong>: <a href="https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/build_population_weighted_energy_totals.py#L32-L43"><code>build_population_weighted_energy_totals.py</code></a>.</p>
-<p><strong>Error</strong>: This part of code:</p>
-<pre><code class="language-python">if snakemake.wildcards.kind == &quot;heat&quot;:
-    snapshots = get_snapshots(
-        snakemake.params.snapshots, snakemake.params.drop_leap_day
-    )
-    data_years = snapshots.year.unique()
-else:
-    data_years = int(config[&quot;energy_totals_year&quot;])
+  <h1>Other code changes</h1>
 
-pop_layout = pd.read_csv(snakemake.input.clustered_pop_layout, index_col=0)
 
-totals = pd.read_csv(snakemake.input.energy_totals, index_col=[0, 1])
-
-totals = totals.loc[idx[:, data_years], :].groupby(&quot;country&quot;).mean() # ← KeyError when snapshots &gt; 2023
-</code></pre>
-<p>would generate this error:</p>
-<blockquote>
-<p>raise KeyError(key) from err</p>
-</blockquote>
-<p><strong>Draft potential solution</strong>: substitute the code above with:</p>
-<pre><code class="language-python">if snakemake.wildcards.kind == &quot;heat&quot;:
-    snapshots = get_snapshots(
-        snakemake.params.snapshots, snakemake.params.drop_leap_day
-    )
-    data_years = snapshots.year.unique()
-else:
-    data_years = int(config[&quot;energy_totals_year&quot;])
-
-pop_layout = pd.read_csv(snakemake.input.clustered_pop_layout, index_col=0)
-
-totals = pd.read_csv(snakemake.input.energy_totals, index_col=[0, 1])
-
-if snakemake.wildcards.kind == &quot;heat&quot;:
-    available_years = totals.index.get_level_values(1).unique()
-    data_years = data_years[pd.Series(data_years).isin(available_years).values]
-    if len(data_years) == 0:
-        data_years = int(config[&quot;energy_totals_year&quot;])
-        logger.warning(
-            f&quot;Snapshot years not found in energy totals data. &quot;
-            f&quot;Falling back to energy_totals_year={data_years}.&quot;
-        )
-
-totals = totals.loc[idx[:, data_years], :].groupby(&quot;country&quot;).mean()
-</code></pre>
-<h2 id="3-nuclear-p_max_pu">3) Nuclear <code>p_max_pu</code></h2>
-<p><strong>Availability</strong>: <strong>until 2024 (included)</strong> ==&gt; if snapshots year &gt; 2024, a <code>KeyError</code> is raised.</p>
-<p><strong>Script/function</strong>: <a href="https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/add_electricity.py#L682-L687"><code>add_electricity.py/attach_conventional_generators()</code></a>.</p>
-<p><strong>Error</strong>: This part of code:</p>
-<pre><code class="language-python">try:
-    df.columns = df.columns.astype(int)
-    year = n.snapshots[0].year
-    values = df[year]          # ← KeyError when snapshots &gt; 2024
-except (ValueError, TypeError):
-    values = df.iloc[:, -1] 
-</code></pre>
-<p>would generate this error:</p>
-<blockquote>
-<p>raise KeyError(key) from err</p>
-</blockquote>
-<p><strong>Draft proposed solution</strong>: substitute the code above with:</p>
-<pre><code class="language-python">try:
-    df.columns = df.columns.astype(int)
-    year = n.snapshots[0].year
-    year = min(year, df.columns.max())
-    values = df[year]
-except (ValueError, TypeError):
-    values = df.iloc[:, -1]
-</code></pre>
-<h1 id="calibration">Calibration</h1>
-<h2 id="1-irenastat-existing-capacities">1) IRENASTAT existing capacities</h2>
-<p><strong>Issue</strong>: existing capacities added in years &gt; calibration year are accounted for when considering existing solar and wind capacities.</p>
-<p><strong>Script/function</strong>: <a href="https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/add_existing_baseyear.py#L71"><code>add_existing_baseyear.py/add_existing_renewables()</code></a>.</p>
-<p><strong>Example</strong>: calibration year=2023, carrier=<code>solar</code>, country=<code>DE</code>
-When analyzing the network <code>n</code> after <code>add_existing_baseyear</code>:</p>
-<pre><code class="language-python">n.generators[(n.generators.index.str.contains(&quot;DE&quot;)) &amp; (n.generators.carrier==&quot;solar&quot;)].p_nom.sum()/1e3
-&gt; np.float64(89.943)
-</code></pre>
-<p>I would get ~ 90 GW against historical ~ 77 GW from <a href="https://www.energy-charts.info/charts/installed_power/chart.htm?l=en&amp;c=DE&amp;year=2023">EnergyCharts</a>.</p>
-<p>In particular, when looking at the <code>build_year</code>:</p>
-<pre><code class="language-python">n.generators[(n.generators.index.str.contains(&quot;DE&quot;)) &amp; (n.generators.carrier==&quot;solar&quot;)].build_year.unique()
-&gt; array([2023, 2000, 2005, 2010, 2015, 2020, 2025])
-</code></pre>
-<p><strong>Draft potential solution</strong>: filter IRENASTAT data up to the calibration year (i.e., <code>baseyear</code>), by adding before this <a href="https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/add_existing_baseyear.py#L118">line</a> (i.e., <code>df.insert(loc=0, value=0.0, column="1999")</code>, the following:</p>
-<pre><code class="language-python">df = df.loc[:, df.columns &lt;= baseyear]
-</code></pre>
-<p>When doing so:</p>
-<pre><code class="language-python">n.generators[(n.generators.index.str.contains(&quot;DE&quot;)) &amp; (n.generators.carrier==&quot;solar&quot;)].p_nom.sum()/1e3
-&gt;np.float64(74.882)
-
-n.generators[(n.generators.index.str.contains(&quot;DE&quot;)) &amp; (n.generators.carrier==&quot;solar&quot;)].build_year.unique()
-&gt;array([2023, 2000, 2005, 2010, 2015, 2020])
-</code></pre>
-<h2 id="2-other-existing-capacities">2) Other existing capacities</h2>
-<p><strong>Issue</strong>: underestimation of actual existing capacities for those power plants from PPM dataset, with unkonwn <code>DateOut</code>. In this case, the latter is estimated by using the <code>lifetime</code> from the technology costs dataset:  if the estimated <code>DateOut &lt; baseyear</code>, those power plants are filtered out, even though they might be still operating in the <code>baseyear</code>.</p>
-<p><strong>Script/function</strong>: <a href="https://github.com/PyPSA/pypsa-eur/blob/f124355cfa4987dbab3335dbdb22aa6de57b3ff6/scripts/add_existing_baseyear.py#L153">`add_existing_baseyear.py/add_power_capacities_installed_before_baseyear()</a>.</p>
-<p>In particular:</p>
-<pre><code class="language-python">[...]
-
-# Estimate missing DateOut
-df_agg[&quot;DateOut&quot;] = df_agg.DateOut.combine_first(
-    df_agg.DateIn + df_agg.Fueltype.map(costs.lifetime).fillna(30)
-)
-
-[...]
-
-# drop assets which are already phased out / decommissioned
-phased_out = df_agg[df_agg[&quot;DateOut&quot;] &lt; baseyear].index
-df_agg.drop(phased_out, inplace=True)
-
-[...]
-</code></pre>
-<p><strong>Draft potential solution</strong>: this issue has not been addressed in the project. However, a preliminary solution might be to estimate an average lifetime by carrier and by <code>DateIn</code>, which is different from the fixed technology cost one.</p>
 
 
 

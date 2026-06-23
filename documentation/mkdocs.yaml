@@ -39,6 +39,7 @@ nav:
   - Features:
     - Model calibration: features/calibration.md
     - Scenarios: features/scenarios.md
+    - Other code changes: features/other-code-changes.md
 
 markdown_extensions:
   - material.extensions.preview:
