@@ -1,6 +1,6 @@
 # Calibration
 
-While developing the model and adapting it to simulate the historical period 2020-2025, some calibration issues have been faced, which can be classifed in two categories:
+This section includes all the changes applied to the [upstream PyPSA-EUR](https://github.com/open-energy-transition/pypsa-eur) scripts. These changes addresses calibration issues that have been faced while developing the model and adapting it to simulate the historical period 2020-2025. These issues can be classifed in two categories:
 
 * **Data availability:** some default input data are not available for recent past years (e.g., 2024 and 2025).
 * **Calibration:** resulting default existing capacities for some carriers in past year are not aligned with historical data.

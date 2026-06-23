@@ -1,6 +1,6 @@
 # Scenarios
 
-This section includes all the additional code and workflow integration compared to the [upstream PyPSA-EUR](https://github.com/open-energy-transition/pypsa-eur). These changes were needed to correctly develop and run the model.
+This section includes all the additional code compared to the [upstream PyPSA-EUR](https://github.com/open-energy-transition/pypsa-eur). These changes were needed to correctly develop and run the model.
 
 ---
 

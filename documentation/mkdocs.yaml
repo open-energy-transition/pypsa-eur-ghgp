@@ -38,8 +38,8 @@ nav:
   - Introduction: introduction.md
   - Configuration: configuration.md
   - Features:
-    - Model calibration: features/calibration.md
     - Scenarios: features/scenarios.md
+    - Model calibration: features/calibration.md
     - Other code changes: features/other-code-changes.md
 
 markdown_extensions:
