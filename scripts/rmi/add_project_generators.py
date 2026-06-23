@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: Open Energy Transition gGmbH and contributors to PyPSA-Eur <https://github.com/pypsa/pypsa-eur>
 #
 # SPDX-License-Identifier: MIT
-"""Add an additional renewable energy project to the brownfield network.
+"""
+Add an additional renewable energy project to the brownfield network.
 
 For baseline scenarios (``project.enable: false``), the network is passed
 through unchanged.  For project scenarios (``project.enable: true``), the
@@ -53,8 +54,12 @@ def add_project_generators(
     n: pypsa.Network,
     project_file: str,
     baseyear: int,
+    carriers: list[str] | None = None,
+    sizes_mw: list[float] | None = None,
+    countries: list[str] | None = None,
 ) -> None:
-    """Insert project generators defined in *project_file* into *n*.
+    """
+    Insert project generators defined in *project_file* into *n*.
 
     Parameters
     ----------
@@ -65,34 +70,80 @@ def add_project_generators(
     baseyear:
         Planning horizon year, used to find the matching existing generator
         for profile / cost copying (e.g. 2025).
+    carriers:
+        If given, only rows whose ``carrier`` column is in this list are added.
+        Maps to ``backcasting.project.carrier`` in the config.
+    sizes_mw:
+        If given, only rows whose ``p_nom_MW`` column is in this list are added.
+        Maps to ``backcasting.project.size_MW`` in the config.
+    countries:
+        If given, only rows whose ``country`` column is in this list are added.
+        Maps to ``backcasting.project.country`` in the config.
     """
     project_gens = pd.read_csv(project_file)
 
+    if carriers is not None:
+        project_gens = project_gens[project_gens["carrier"].isin(carriers)]
+    if sizes_mw is not None:
+        project_gens = project_gens[project_gens["p_nom_MW"].isin(sizes_mw)]
+    if countries is not None:
+        project_gens = project_gens[project_gens["country"].isin(countries)]
+
+    if project_gens.empty:
+        logger.warning(
+            "No project generators match the active filters "
+            "(carriers=%s, sizes_mw=%s, countries=%s). Nothing added.",
+            carriers,
+            sizes_mw,
+            countries,
+        )
+        return
+
+    logger.info(
+        "Adding %d project generator(s) after filtering "
+        "(carriers=%s, sizes_mw=%s, countries=%s).",
+        len(project_gens),
+        carriers,
+        sizes_mw,
+        countries,
+    )
+
     for _, row in project_gens.iterrows():
-        country = str(row["country"])
+        country_or_bus = str(row["country"])
         carrier = str(row["carrier"])
         p_nom_mw = float(row["p_nom_MW"])
         resource_class = str(int(row.get("resource_class", 0)))
 
         # ------------------------------------------------------------------
-        # 1.  Find the AC bus for this country
+        # 1.  Find the AC bus for this country/bus
+        #     The "country" column may contain either an ISO 3166-1 alpha-2
+        #     country code (e.g. "DE") or a direct bus name (e.g. "GB3 0").
         # ------------------------------------------------------------------
-        ac_buses = n.buses[
-            (n.buses.carrier == "AC") & (n.buses.country == country)
-        ]
-        if ac_buses.empty:
-            logger.warning(
-                "No AC bus found for country '%s'. Skipping row.", country
-            )
-            continue
-        bus = ac_buses.index[0]
-        if len(ac_buses) > 1:
-            logger.info(
-                "Multiple AC buses found for country '%s'. "
-                "Using the first one: '%s'.",
-                country,
-                bus,
-            )
+        if country_or_bus in n.buses.index:
+            # Direct bus reference
+            bus = country_or_bus
+            if n.buses.at[bus, "carrier"] != "AC":
+                logger.warning("Bus '%s' is not an AC bus. Skipping row.", bus)
+                continue
+        else:
+            # Country code → pick the first AC bus for that country
+            ac_buses = n.buses[
+                (n.buses.carrier == "AC") & (n.buses.country == country_or_bus)
+            ]
+            if ac_buses.empty:
+                logger.warning(
+                    "No AC bus found for country '%s'. Skipping row.",
+                    country_or_bus,
+                )
+                continue
+            bus = ac_buses.index[0]
+            if len(ac_buses) > 1:
+                logger.info(
+                    "Multiple AC buses found for country '%s'. "
+                    "Using the first one: '%s'.",
+                    country_or_bus,
+                    bus,
+                )
 
         # ------------------------------------------------------------------
         # 2.  Locate the source generator for profile / cost cloning
@@ -179,12 +230,12 @@ if __name__ == "__main__":
 
         snakemake = mock_snakemake(
             "add_project_generators",
-            run="test-project-2025-3H-1M-DE-solar-100MW",
+            run="test-project-2020-3H-DE-solar-100MW",
             opts="",
-            clusters="2",
-            configfiles="config/test/config.rmi.yaml",
+            clusters="39",
+            configfiles="config/config.rmi.yaml",
             sector_opts="",
-            planning_horizons="2025",
+            planning_horizons="2020",
         )
 
     set_scenario_config(snakemake)
@@ -199,6 +250,9 @@ if __name__ == "__main__":
         n=n,
         project_file=project_config["file"],
         baseyear=baseyear,
+        carriers=project_config.get("carrier"),
+        sizes_mw=project_config.get("size_MW"),
+        countries=project_config.get("country"),
     )
 
     n.export_to_netcdf(snakemake.output[0])

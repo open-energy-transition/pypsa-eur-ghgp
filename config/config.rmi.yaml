@@ -1,0 +1,177 @@
+%YAML 1.1
+---
+# yaml-language-server: $schema=./schema.default.json
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#version
+version: v2026.02.0
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#tutorial
+tutorial: false
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#logging
+logging:
+  level: INFO
+  format: "%(levelname)s:%(name)s:%(message)s"
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#remote
+remote:
+  ssh: ""
+  path: ""
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#run
+run:
+  prefix: ""
+  name:
+  - baseline-2024-3H
+  scenarios:
+    enable: true
+    file: config/scenarios.rmi.yaml
+  disable_progressbar: false
+  shared_resources:
+    policy: false
+    exclude: []
+  use_shadow_directory: false
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#foresight
+foresight: myopic
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#scenario
+scenario:
+  clusters:
+  - 39
+  opts:
+  - ""
+  sector_opts:
+  - ""
+  planning_horizons:
+  - 2024
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#snapshots
+snapshots:
+  start: "2013-01-01"
+  end: "2014-01-01"
+  inclusive: left
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#co2_budget
+# Set to 1.0 (= 100% of 1990 levels) for all backcasting years to make the
+# CO2 constraint non-binding. Actual emissions in 2020–2025 are well below
+# 1990 levels, so the constraint never activates. This avoids distorting the
+# emission impact signal between baseline and project scenarios (see
+# .github/instructions/039-rmi-ghgp.instructions.md and section 7.7 of
+# backcasting-strategy.instructions.md).
+co2_budget:
+  2020: 1.0
+  2025: 1.0
+
+backcasting: # costs_{year_costs}.csv is copied to costs_{planning_horizons}.csv for non-milestone years
+  enable: true
+  year_costs: 2025
+  # docs: project scenario — additional renewable energy project injected after add_existing_baseyear
+  # Overridden per scenario in scenarios.rmi.yaml (enable: true for project scenarios)
+  project:
+    enable: false
+    file: data/project_generators.csv
+    carrier: ["solar"]
+    size_MW: [100]
+    country: ["DE"]
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#electricity
+electricity:
+  extendable_carriers:
+    Generator: []
+    StorageUnit: []
+    Store: []
+    Link: []
+  transmission_limit: v1.0
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#lines
+lines:
+  under_construction: zero
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#transmission_projects
+transmission_projects:
+  enable: false
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#pypsa_eur
+# Overrides default to keep biomass generators as simple AC-connected Generators.
+# Without this, biomass generators added by add_electricity.py are removed by
+# remove_elec_base_techs() in prepare_sector_network.py (carrier not in the keep list).
+pypsa_eur:
+  Bus:
+  - AC
+  Link:
+  - DC
+  Generator:
+  - onwind
+  - "offwind-ac"
+  - "offwind-dc"
+  - "offwind-float"
+  - "solar-hsat"
+  - solar
+  - ror
+  - nuclear
+  - biomass  # keep historical biomass powerplants as simple AC Generators
+  StorageUnit:
+  - PHS
+  - hydro
+  Store: []
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#sector
+sector:
+  biomass: false        # no EU solid biomass bus → no infeasibility from mandatory dispatch;
+                        # historical biomass powerplants are kept via pypsa_eur.Generator above
+  transport: false
+  heating: false
+  industry: false
+  shipping: false
+  aviation: false
+  agriculture: false
+  dac: false
+  co2_network: false
+  co2_spatial: false
+  regional_co2_sequestration_potential:
+    enable: false
+  H2_network: false
+  hydrogen_fuel_cell: false
+  hydrogen_turbine: false
+  SMR: false
+  SMR_cc: false
+  gas_network: false
+  gas_distribution_grid: false
+  electricity_distribution_grid: false
+  ammonia: false
+  methanol:
+    biomass_to_methanol: false
+    methanol_to_power:
+      ocgt: false
+  hydrogen_underground_storage: false
+  methanation: false
+  regional_oil_demand: false  # defensive/documentary only: supply bus ("EU oil") is hardcoded at
+                              # prepare_sector_network.py:178 regardless of this flag; flag only
+                              # affects demand buses (never created when all demand sectors disabled)
+
+costs:
+  emission_prices:
+    enable: true
+    co2: 50 # (€/tCO2) ~ yearly average year in the period 2020-2025 based on https://economy-finance.ec.europa.eu/trends-carbon-intensity-and-macroeconomic-role-eu-emissions-trading-system_en
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#clustering
+clustering:
+  temporal:
+    resolution_sector: 3H
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#adjustments
+adjustments:
+  sector:
+    absolute:
+      Link:
+        H2 Electrolysis:
+          p_nom_max: 0.0
+      Store:
+        H2 Store:
+          e_nom_max: 0.0
+
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#solving
+solving:
+  options:
+    load_shedding: true

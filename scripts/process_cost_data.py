@@ -256,8 +256,9 @@ if __name__ == "__main__":
 
         snakemake = mock_snakemake(
             "process_cost_data",
-            planning_horizons=2024,
-            configfiles="config/test/config.rmi.yaml",
+            run="test-baseline-2020-3H",
+            planning_horizons=2020,
+            configfiles="config/config.rmi.yaml",
         )
 
     cost_params = snakemake.params["costs"]

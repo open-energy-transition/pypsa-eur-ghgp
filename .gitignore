@@ -113,11 +113,12 @@ dev/*
 CLAUDE.md
 .claude/
 .github/copilot-instructions.md
+.github/instructions/
 CLAUDE.local.md
 .github/instructions/*
 # pixi environments
 .pixi/*
 !.pixi/config.toml
 
-# post-processing
+# post-processing of results
 post-processing/*

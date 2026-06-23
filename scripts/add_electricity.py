@@ -695,6 +695,7 @@ def attach_conventional_generators(
                 try:
                     df.columns = df.columns.astype(int)
                     year = n.snapshots[0].year
+                    year = min(year, df.columns.max())
                     values = df[year]
                 except (ValueError, TypeError):
                     values = df.iloc[:, -1]  # take last column if year selection fails
