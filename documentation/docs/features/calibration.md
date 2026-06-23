@@ -7,8 +7,8 @@ While developing the model and adapting it to simulate the historical period 202
 
 Details and examples of such issues, alongside the solutions implemented in the project to partially overcome them, are provided below.
 
-> [!NOTE]
-> This is not meant to be a comprehensive description of the calibration needs of PyPSA-Eur, as it is based on this specific project. Also, the latter did not involve any direct calibration activities. Instead, the description below is meant to be a starting point to investigate whether, and to which extent, further calibrating PyPSA-Eur might be useful for the PyPSA-EURcommunity. In this regard, the topic has been raised in the [discord server](https://discord.com/invite/AnuJBk23FU).
+!!! note
+    This is not meant to be a comprehensive description of the calibration needs of PyPSA-Eur, as it is based on this specific project. Also, the latter did not involve any direct calibration activities. Instead, the description below is meant to be a starting point to investigate whether, and to which extent, further calibrating PyPSA-Eur might be useful for the PyPSA-EURcommunity. In this regard, the topic has been raised in the [discord server](https://discord.com/invite/AnuJBk23FU).
 
 ---
 
