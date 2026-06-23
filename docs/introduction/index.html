@@ -554,28 +554,6 @@ As there is a common system-level package cache, <code>pixi</code> efficiently c
 If <code>pixi</code> isn't working, you can install from one of the fallback <code>conda</code> environment files found in <code>envs</code>.
 For more details see <a href="https://pypsa-eur.readthedocs.io/en/latest/installation.html">the PyPSA-Eur installation guide</a>.</p>
 </blockquote>
-<h2 id="extra-soft-fork-dependencies">Extra soft-fork dependencies</h2>
-<p>If you add dependencies to your project, we recommend you add them to a <a href="https://pixi.sh/v0.21.1/features/multi_environment/#feature-environment-set-definitions">new <code>pixi</code> environment</a>.
-For instance, if you need access to <code>plotly</code>, want to pin the version of gurobi you are using, and want to add a PyPI dependency:</p>
-<pre><code class="language-sh">pixi add -f {{ project_short_name }} &quot;gurobi&lt;13&quot; &quot;plotly&quot;
-pixi add -f {{ project_short_name }} --pypi pypsa-explorer
-</code></pre>
-<p>This will create these entries in your <code>pixi.toml</code></p>
-<pre><code class="language-toml">[feature.{{ project_short_name }}.pypi-dependencies]
-pypsa-explorer = &quot;*&quot;
-
-[feature.{{ project_short_name }}.dependencies]
-gurobi = &quot;&lt;13&quot;
-plotly = &quot;*&quot;
-</code></pre>
-<p>Then, you can create an environment from this feature in <code>pixi.toml</code>:</p>
-<pre><code class="language-toml">[environments]
-...
-{{ project_short_name }} = [{{ project_short_name }}]
-</code></pre>
-<p>These dependencies will be combined with the core PyPSA-Eur dependencies and can be accessed by calling:</p>
-<pre><code class="language-sh">pixi shell -e {{ project_short_name }}
-</code></pre>
 <h1 id="run-scenarios">Run scenarios</h1>
 <p>The script <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/run/backcasting_run.py"><code>run/backcasting_run.py</code></a> has been developed to interactively and automatically run the scenarios available in <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/scenarios.rmi.yaml"><code>config/scenarios.rmi.yaml</code></a>. The script is useful as it identifies the many resources that are common across the scenarios, reducing the number of rules included in the snakemake workflows.</p>
 <p>The interactive steps are listed below, whereas for more details on model configurations and the script see, respectively, sections <a href="../configuration/">Configuration</a> and <a href="../features/scenarios/">Scenarios</a>.</p>
@@ -585,7 +563,7 @@ plotly = &quot;*&quot;
 </code></pre>
 <p>The script guides the user through a series of interactive prompts to configure the run(s):</p>
 <ol>
-<li><strong>Select configuration:</strong> chose one from the available configurations (e.g., full or test model). Each configuration is made of a base configuration file (e.g., <code>config/config.rmi.yaml</code>), containing all the common settings across the available scenarios, and a scenario configuration (e.g., <code>config/scenarios.rmi.yaml</code>), containing the specific scenario settings.</li>
+<li><strong>Select configuration:</strong> chose one from the available configurations (e.g., full or test model). Each configuration is made of a base configuration file (e.g., <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/config.rmi.yaml"><code>config/config.rmi.yaml</code></a>), containing all the common settings across the available scenarios, and a scenario configuration (e.g., <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/scenarios.rmi.yaml"><code>config/scenarios.rmi.yaml</code></a>), containing the specific scenario settings.</li>
 <li><strong>Select scenario(s):</strong> chose the scenario(s) to run from the available ones, including the possibility to run them all.</li>
 <li><strong>Select the number of CPUs:</strong> chose how many cores to use.</li>
 <li><strong>Select dry-run:</strong> chose whether to dry-run or not before each scenario. The dry-run allows the user to first look at the rules to be run without actually run the snakemake workflow.</li>

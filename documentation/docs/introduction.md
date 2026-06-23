@@ -49,41 +49,6 @@ pixi shell
 >If `pixi` isn't working, you can install from one of the fallback `conda` environment files found in `envs`.
 >For more details see [the PyPSA-Eur installation guide](https://pypsa-eur.readthedocs.io/en/latest/installation.html).
 
-## Extra soft-fork dependencies
-
-If you add dependencies to your project, we recommend you add them to a [new `pixi` environment](https://pixi.sh/v0.21.1/features/multi_environment/#feature-environment-set-definitions).
-For instance, if you need access to `plotly`, want to pin the version of gurobi you are using, and want to add a PyPI dependency:
-
-```sh
-pixi add -f {{ project_short_name }} "gurobi<13" "plotly"
-pixi add -f {{ project_short_name }} --pypi pypsa-explorer
-```
-
-This will create these entries in your `pixi.toml`
-
-```toml
-[feature.{{ project_short_name }}.pypi-dependencies]
-pypsa-explorer = "*"
-
-[feature.{{ project_short_name }}.dependencies]
-gurobi = "<13"
-plotly = "*"
-```
-
-Then, you can create an environment from this feature in `pixi.toml`:
-
-```toml
-[environments]
-...
-{{ project_short_name }} = [{{ project_short_name }}]
-```
-
-These dependencies will be combined with the core PyPSA-Eur dependencies and can be accessed by calling:
-
-```sh
-pixi shell -e {{ project_short_name }}
-```
-
 # Run scenarios
 
 The script [`run/backcasting_run.py`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/run/backcasting_run.py) has been developed to interactively and automatically run the scenarios available in [`config/scenarios.rmi.yaml`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/scenarios.rmi.yaml). The script is useful as it identifies the many resources that are common across the scenarios, reducing the number of rules included in the snakemake workflows.
@@ -98,7 +63,7 @@ python run/backcasting_run.py
 
 The script guides the user through a series of interactive prompts to configure the run(s):
 
-1. **Select configuration:** chose one from the available configurations (e.g., full or test model). Each configuration is made of a base configuration file (e.g., `config/config.rmi.yaml`), containing all the common settings across the available scenarios, and a scenario configuration (e.g., `config/scenarios.rmi.yaml`), containing the specific scenario settings.
+1. **Select configuration:** chose one from the available configurations (e.g., full or test model). Each configuration is made of a base configuration file (e.g., [`config/config.rmi.yaml`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/config.rmi.yaml)), containing all the common settings across the available scenarios, and a scenario configuration (e.g., [`config/scenarios.rmi.yaml`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/scenarios.rmi.yaml)), containing the specific scenario settings.
 2. **Select scenario(s):** chose the scenario(s) to run from the available ones, including the possibility to run them all.
 3. **Select the number of CPUs:** chose how many cores to use.
 4. **Select dry-run:** chose whether to dry-run or not before each scenario. The dry-run allows the user to first look at the rules to be run without actually run the snakemake workflow.
