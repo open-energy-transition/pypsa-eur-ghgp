@@ -2,6 +2,8 @@
 
 This section includes all the other modifications applied to the [upstream PyPSA-EUR](https://github.com/open-energy-transition/pypsa-eur) scripts. These are minor code changes not directly related to model calibration, but needed to correctly run the scenarios with the configuration settings described in section [Configuration](configuration.md).
 
+---
+
 ## Modeling of existing biomass power plants when `sector.biomass: false`
 **Script/function:** `scripts/add_existing_baseyear.py/add_power_capacities_installed_before_baseyear()`(https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/add_existing_baseyear.py#L162).
 
@@ -26,6 +28,8 @@ if generator == "urban central solid biomass CHP" and not options.get("biomass",
     continue  # biomass buses not created; plants already in network as Generators
 ```
 
+---
+
 ## Modeling of existing nuclear power plants
 **Script/function:** [`scripts/add_existing_baseyear.py/add_power_capacities_installed_before_baseyear()`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/add_existing_baseyear.py#L162).
 
@@ -44,6 +48,7 @@ if generator == "nuclear":
 **Notes:**
 - This is a well-know bug in [original PyPSA-Eur](https://github.com/PyPSA/pypsa-eur), which is currently being addresed in [this PR](https://github.com/PyPSA/pypsa-eur/pull/1540).
 
+---
 
 ## Electricity demand processing when load year differs from snapshots
 **Script/function:** [`scripts/build_electricity_demand.py`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/build_electricity_demand.py).

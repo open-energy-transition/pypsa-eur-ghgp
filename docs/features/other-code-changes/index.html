@@ -690,6 +690,7 @@
 
 <h1 id="other-minor-code-changes">Other minor code changes</h1>
 <p>This section includes all the other modifications applied to the <a href="https://github.com/open-energy-transition/pypsa-eur">upstream PyPSA-EUR</a> scripts. These are minor code changes not directly related to model calibration, but needed to correctly run the scenarios with the configuration settings described in section <a href="configuration.md">Configuration</a>.</p>
+<hr />
 <h2 id="modeling-of-existing-biomass-power-plants-when-sectorbiomass-false">Modeling of existing biomass power plants when <code>sector.biomass: false</code></h2>
 <p><strong>Script/function:</strong> <code>scripts/add_existing_baseyear.py/add_power_capacities_installed_before_baseyear()</code>(https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/add_existing_baseyear.py#L162).</p>
 <p><strong>Issue:</strong></p>
@@ -706,6 +707,7 @@
 if generator == &quot;urban central solid biomass CHP&quot; and not options.get(&quot;biomass&quot;, False):
     continue  # biomass buses not created; plants already in network as Generators
 </code></pre>
+<hr />
 <h2 id="modeling-of-existing-nuclear-power-plants">Modeling of existing nuclear power plants</h2>
 <p><strong>Script/function:</strong> <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/add_existing_baseyear.py#L162"><code>scripts/add_existing_baseyear.py/add_power_capacities_installed_before_baseyear()</code></a>.</p>
 <p><strong>Issue:</strong></p>
@@ -718,6 +720,7 @@ if generator == &quot;nuclear&quot;:
 </code></pre>
 <p><strong>Notes:</strong>
 - This is a well-know bug in <a href="https://github.com/PyPSA/pypsa-eur">original PyPSA-Eur</a>, which is currently being addresed in <a href="https://github.com/PyPSA/pypsa-eur/pull/1540">this PR</a>.</p>
+<hr />
 <h2 id="electricity-demand-processing-when-load-year-differs-from-snapshots">Electricity demand processing when load year differs from snapshots</h2>
 <p><strong>Script/function:</strong> <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/build_electricity_demand.py"><code>scripts/build_electricity_demand.py</code></a>.</p>
 <p><strong>Issue:</strong></p>
