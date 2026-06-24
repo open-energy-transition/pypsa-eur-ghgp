@@ -14,21 +14,21 @@ Details and examples of such issues, alongside the solutions implemented in the 
 
 ## Data availability
 ### 1) Synthetic load data
-**Availability**: **until 2023 (included)** ==> if snapshots year > 2023, a `KeyError` is raised.
-
 **Script/function**: [`build_electricity_demand.py`](https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/build_electricity_demand.py#L312-L316).
 
-**Upstream code**:
+**Availability:** **until 2023 (included)** ==> if snapshots year > 2023, a `KeyError` is raised.
+
+**Upstream code:**
 ```python
 synthetic_load = pd.read_csv(fn, index_col=0, parse_dates=True)
 countries = list(set(countries) - set(["UA", "MD", "XK", "CY", "MT"]))
-synthetic_load = synthetic_load.loc[snapshots, countries] # ← KeyError when snapshots > 2023
+synthetic_load = synthetic_load.loc[snapshots, countries] #!!! KeyError when snapshots > 2023
 load = load.combine_first(synthetic_load)
 ```
 This code would generate this error:
 > raise KeyError(f"None of [{key}] are in the [{axis_name}]")
 
-**New code**:
+**New code:**
 ```python
 synthetic_load = pd.read_csv(fn, index_col=0, parse_dates=True)
 countries = list(set(countries) - set(["UA", "MD", "XK", "CY", "MT"]))
@@ -50,11 +50,11 @@ else:
 ```
 
 ### 2) JRC IDEES
-**Availability**: **until 2023 (included)** ==> if snapshots year > 2023, a `KeyError` is raised only for the heating sector.
-
 **Script/function**: [`build_population_weighted_energy_totals.py`](https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/build_population_weighted_energy_totals.py#L32-L43).
 
-**Upstream code**:
+**Availability:** **until 2023 (included)** ==> if snapshots year > 2023, a `KeyError` is raised only for the heating sector.
+
+**Upstream code:**
 ```python
 if snakemake.wildcards.kind == "heat":
     snapshots = get_snapshots(
@@ -68,12 +68,12 @@ pop_layout = pd.read_csv(snakemake.input.clustered_pop_layout, index_col=0)
 
 totals = pd.read_csv(snakemake.input.energy_totals, index_col=[0, 1])
 
-totals = totals.loc[idx[:, data_years], :].groupby("country").mean() # ← KeyError when snapshots > 2023
+totals = totals.loc[idx[:, data_years], :].groupby("country").mean() #!!! KeyError when snapshots > 2023
 ```
 This code would generate this error:
 > raise KeyError(key) from err
 
-**New code**: substitute the code above with:
+**New code:** substitute the code above with:
 ```python
 if snakemake.wildcards.kind == "heat":
     snapshots = get_snapshots(
@@ -101,23 +101,23 @@ totals = totals.loc[idx[:, data_years], :].groupby("country").mean()
 ```
 
 ### 3) Nuclear `p_max_pu`
-**Availability**: **until 2024 (included)** ==> if snapshots year > 2024, a `KeyError` is raised.
+**Script/function:** [`add_electricity.py/attach_conventional_generators()`](https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/add_electricity.py#L682-L687).
 
-**Script/function**: [`add_electricity.py/attach_conventional_generators()`](https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/add_electricity.py#L682-L687).
+**Availability:** **until 2024 (included)** ==> if snapshots year > 2024, a `KeyError` is raised.
 
-**Upstream code**:
+**Upstream code:**
 ```python
 try:
     df.columns = df.columns.astype(int)
     year = n.snapshots[0].year
-    values = df[year]          # ← KeyError when snapshots > 2024
+    values = df[year]          #!!! KeyError when snapshots > 2024
 except (ValueError, TypeError):
     values = df.iloc[:, -1] 
 ```
 This code would generate this error:
 > raise KeyError(key) from err
 
-**New code**:
+**New code:**
 ```python
 try:
     df.columns = df.columns.astype(int)
@@ -132,11 +132,16 @@ except (ValueError, TypeError):
 
 ## Calibration
 ### 1) IRENASTAT existing capacities
-**Issue**: existing capacities added in years > calibration year are accounted for when considering existing solar and wind capacities.
+**Script/function:** [`add_existing_baseyear.py/add_existing_renewables()`](https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/add_existing_baseyear.py#L71).
 
-**Script/function**: [`add_existing_baseyear.py/add_existing_renewables()`](https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/add_existing_baseyear.py#L71).
+**Issue:**
 
-**Example**: calibration year=2023, carrier=`solar`, country=`DE`
+Existing capacities added in years > calibration year are accounted for when considering existing solar and wind capacities.
+
+**Example:**
+
+*Calibration year=2023, carrier=`solar`, country=`DE`*
+
 When analyzing the network `n` after `add_existing_baseyear`:
 ```python
 n.generators[(n.generators.index.str.contains("DE")) & (n.generators.carrier=="solar")].p_nom.sum()/1e3
@@ -150,7 +155,9 @@ n.generators[(n.generators.index.str.contains("DE")) & (n.generators.carrier=="s
 > array([2023, 2000, 2005, 2010, 2015, 2020, 2025])
 ```
 
-**Implemented solution**: filter IRENASTAT data up to the calibration year (i.e., `baseyear`), by adding before this [line](https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/add_existing_baseyear.py#L118) (i.e., `df.insert(loc=0, value=0.0, column="1999")`, the following:
+**Implemented solution:**
+
+Filter IRENASTAT data up to the calibration year (i.e., `baseyear`), by adding before this [line](https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/add_existing_baseyear.py#L118) (i.e., `df.insert(loc=0, value=0.0, column="1999")`, the following:
 ```python
 df = df.loc[:, df.columns <= baseyear]
 ```
@@ -165,9 +172,11 @@ n.generators[(n.generators.index.str.contains("DE")) & (n.generators.carrier=="s
 ```
 
 ### 2) Other existing capacities
-**Issue**: underestimation of actual existing capacities for those power plants from PPM dataset, with unkonwn `DateOut`. In this case, the latter is estimated by using the `lifetime` from the technology costs dataset:  if the estimated `DateOut < baseyear`, those power plants are filtered out, even though they might be still operating in the `baseyear`.
+**Script/function:** [`add_existing_baseyear.py/add_power_capacities_installed_before_baseyear()](https://github.com/PyPSA/pypsa-eur/blob/f124355cfa4987dbab3335dbdb22aa6de57b3ff6/scripts/add_existing_baseyear.py#L153).
 
-**Script/function**: [`add_existing_baseyear.py/add_power_capacities_installed_before_baseyear()](https://github.com/PyPSA/pypsa-eur/blob/f124355cfa4987dbab3335dbdb22aa6de57b3ff6/scripts/add_existing_baseyear.py#L153).
+**Issue:**
+
+Underestimation of actual existing capacities for those power plants from PPM dataset, with unkonwn `DateOut`. In this case, the latter is estimated by using the `lifetime` from the technology costs dataset:  if the estimated `DateOut < baseyear`, those power plants are filtered out, even though they might be still operating in the `baseyear`.
 
 In particular:
 ```python
@@ -187,4 +196,4 @@ df_agg.drop(phased_out, inplace=True)
 [...]
 ```
 
-**Potential solution**: this issue has not been addressed in the project. However, a preliminary solution might be to estimate an average lifetime by carrier and by `DateIn`, which is different from the fixed technology cost one.
+**Potential solution:** this issue has not been addressed in the project. However, a preliminary solution might be to estimate an average lifetime by carrier and by `DateIn`, which is different from the fixed technology cost one.
