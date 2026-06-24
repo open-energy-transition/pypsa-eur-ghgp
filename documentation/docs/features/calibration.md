@@ -18,17 +18,17 @@ Details and examples of such issues, alongside the solutions implemented in the 
 
 **Script/function**: [`build_electricity_demand.py`](https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/build_electricity_demand.py#L312-L316).
 
-**Error**: This part of code:
+**Upstream code**:
 ```python
 synthetic_load = pd.read_csv(fn, index_col=0, parse_dates=True)
 countries = list(set(countries) - set(["UA", "MD", "XK", "CY", "MT"]))
 synthetic_load = synthetic_load.loc[snapshots, countries] # ← KeyError when snapshots > 2023
 load = load.combine_first(synthetic_load)
 ```
-would generate this error:
+This code would generate this error:
 > raise KeyError(f"None of [{key}] are in the [{axis_name}]")
 
-**Draft potential solution**: substitute the code above with:
+**New code**:
 ```python
 synthetic_load = pd.read_csv(fn, index_col=0, parse_dates=True)
 countries = list(set(countries) - set(["UA", "MD", "XK", "CY", "MT"]))
@@ -54,7 +54,7 @@ else:
 
 **Script/function**: [`build_population_weighted_energy_totals.py`](https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/build_population_weighted_energy_totals.py#L32-L43).
 
-**Error**: This part of code:
+**Upstream code**:
 ```python
 if snakemake.wildcards.kind == "heat":
     snapshots = get_snapshots(
@@ -70,10 +70,10 @@ totals = pd.read_csv(snakemake.input.energy_totals, index_col=[0, 1])
 
 totals = totals.loc[idx[:, data_years], :].groupby("country").mean() # ← KeyError when snapshots > 2023
 ```
-would generate this error:
+This code would generate this error:
 > raise KeyError(key) from err
 
-**Draft potential solution**: substitute the code above with:
+**New code**: substitute the code above with:
 ```python
 if snakemake.wildcards.kind == "heat":
     snapshots = get_snapshots(
@@ -105,7 +105,7 @@ totals = totals.loc[idx[:, data_years], :].groupby("country").mean()
 
 **Script/function**: [`add_electricity.py/attach_conventional_generators()`](https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/add_electricity.py#L682-L687).
 
-**Error**: This part of code:
+**Upstream code**:
 ```python
 try:
     df.columns = df.columns.astype(int)
@@ -114,10 +114,10 @@ try:
 except (ValueError, TypeError):
     values = df.iloc[:, -1] 
 ```
-would generate this error:
+This code would generate this error:
 > raise KeyError(key) from err
 
-**Draft proposed solution**: substitute the code above with:
+**New code**:
 ```python
 try:
     df.columns = df.columns.astype(int)
@@ -150,7 +150,7 @@ n.generators[(n.generators.index.str.contains("DE")) & (n.generators.carrier=="s
 > array([2023, 2000, 2005, 2010, 2015, 2020, 2025])
 ```
 
-**Draft potential solution**: filter IRENASTAT data up to the calibration year (i.e., `baseyear`), by adding before this [line](https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/add_existing_baseyear.py#L118) (i.e., `df.insert(loc=0, value=0.0, column="1999")`, the following:
+**Implemented solution**: filter IRENASTAT data up to the calibration year (i.e., `baseyear`), by adding before this [line](https://github.com/PyPSA/pypsa-eur/blob/1f8d4a503ac9b348072cca9a6446926b452c091f/scripts/add_existing_baseyear.py#L118) (i.e., `df.insert(loc=0, value=0.0, column="1999")`, the following:
 ```python
 df = df.loc[:, df.columns <= baseyear]
 ```
@@ -187,4 +187,4 @@ df_agg.drop(phased_out, inplace=True)
 [...]
 ```
 
-**Draft potential solution**: this issue has not been addressed in the project. However, a preliminary solution might be to estimate an average lifetime by carrier and by `DateIn`, which is different from the fixed technology cost one.
+**Potential solution**: this issue has not been addressed in the project. However, a preliminary solution might be to estimate an average lifetime by carrier and by `DateIn`, which is different from the fixed technology cost one.
