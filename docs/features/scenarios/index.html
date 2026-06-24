@@ -751,6 +751,36 @@
 <hr />
 <h2 id="scenario-development">Scenario development</h2>
 <h3 id="technology-cost-data-alignment">Technology cost data alignment</h3>
+<p><strong>Affected files</strong>
+- <strong>Script/function:</strong> <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/rules/retrieve.smk"><code>rules/retrieve.smk</code></a>
+- <strong>Configuration settings:</strong> <code>backcasting.enable</code> and <code>backcasting.year_costs</code></p>
+<p><strong>Motivation:</strong></p>
+<p>The <a href="https://github.com/pypsa/technology-data">upstream technology cost database</a> currently provides techno-economic parameters files only for milestone years from 2020 to 2050, with 5-years intervals. Instead, no files are created for intermediate years, e.g., 2021–2024. However, PyPSA-Eur expects a cost file named <code>costs_{planning_horizons[0]}.csv</code> for each scenario year. To enable backcasting for these years, a workflow is needed to generate the required cost files.</p>
+<p><strong>Implementation:</strong></p>
+<p>A new Snakemake rule, <code>copy_cost_data_for_backcasting</code>, is conditionally defined in <code>rules/retrieve.smk</code>:</p>
+<pre><code class="language-python">if config.get(&quot;backcasting&quot;, {}).get(&quot;enable&quot;, False):
+    _year_costs = config[&quot;backcasting&quot;][&quot;year_costs&quot;]
+
+    rule copy_cost_data_for_backcasting:
+        message:
+            &quot;Copying cost data from {_year_costs} to {wildcards.planning_horizons} for backcasting&quot;
+        input:
+            costs=COSTS_DATASET[&quot;folder&quot;] + f&quot;/costs_{_year_costs}.csv&quot;,
+        output:
+            costs=COSTS_DATASET[&quot;folder&quot;] + &quot;/costs_{planning_horizons}.csv&quot;,
+        wildcard_constraints:
+            planning_horizons=f&quot;(?!{_year_costs}$)\\d+&quot;,
+        run:
+            copy2(input[&quot;costs&quot;], output[&quot;costs&quot;])
+
+    ruleorder: copy_cost_data_for_backcasting &gt; retrieve_cost_data
+</code></pre>
+<ul>
+<li>The rule is only active when <code>backcasting.enable: true</code>.</li>
+<li>It copies the user-defined upstream available milestone cost file in <code>backcasting.year_costs</code> (e.g., <code>costs_2025.csv</code>) to the required intermediate year (e.g., <code>costs_2024.csv</code>).</li>
+<li>The rule takes precedence over the default <code>retrieve_cost_data</code> rule for the same output file.</li>
+<li>Only the fossil fuel prices for each simulation year are exogenously set via <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/data/custom_costs.csv"><code>data/custom_costs.csv</code></a> overrides (source: <a href="https://www.worldbank.org/en/research/commodity-markets">World Bank Commodity prices</a>).</li>
+</ul>
 <h3 id="noisy_costs-alignment"><code>noisy_costs</code> alignment</h3>
 <hr />
 <h2 id="modeling-of-additional-renewable-projects">Modeling of additional renewable projects</h2>
