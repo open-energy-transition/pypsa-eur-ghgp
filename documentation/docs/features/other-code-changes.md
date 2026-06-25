@@ -46,7 +46,8 @@ if generator == "nuclear":
 ```
 
 **Notes:**
-- This is a well-know bug in [original PyPSA-Eur](https://github.com/PyPSA/pypsa-eur), which is currently being addresed in [this PR](https://github.com/PyPSA/pypsa-eur/pull/1540).
+
+This is a well-know bug in [original PyPSA-Eur](https://github.com/PyPSA/pypsa-eur), which is currently being addresed in [this PR](https://github.com/PyPSA/pypsa-eur/pull/1540).
 
 ---
 
@@ -88,5 +89,6 @@ load.to_csv(snakemake.output[0])
 ```
 
 **Notes:**
+
 - Consider that this bug was faced when testing the model with different load and weather years. However, the final full model configuration provides for the same load and weather year.
 - The fix is backward-compatible: when `load.fixed_year: false`, the `else` branch reproduces the original behavior exactly. However, the fix does not handle the case when load year differ from snapshots, the former is not a leap year, whereas the latter is a leap year. In this regard, the code line `fixed_year_index = snapshots.map(lambda t: t.replace(year=int(fixed_year)))` would raise this error `ValueError: day is out of range for month.` In this regard, a more comprehensive [bug issue](https://github.com/PyPSA/pypsa-eur/issues/2187) has been raised in the [original PyPSA-Eur](https://github.com/PyPSA/pypsa-eur) repository.

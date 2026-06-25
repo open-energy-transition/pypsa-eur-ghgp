@@ -4,16 +4,46 @@ This section includes all the additional code compared to the [upstream PyPSA-EU
 
 ---
 
-## Modeling of additional renewable projects
-
----
-
 ## Scenario development
 
-### Technology cost data alignment
+### 1) Modeling of additional renewable projects
 **Affected files**
-- **Script/function:** [`rules/retrieve.smk`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/rules/retrieve.smk)
-- **Configuration settings:** `backcasting.enable` and `backcasting.year_costs`
+
+- **Rule:**: [`rules/solve_myopic.smk/add_project_generators](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/rules/solve_myopic.smk#L107).
+- **Script/function:** [`scripts/rmi/add_project_generators.py`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/rmi/add_project_generators.py)
+- **Configuration settings:** `backcasting.project`.
+- **File:** [`data/project_generators.csv`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/data/project_generators.csv).
+  
+**Motivation:**
+
+The project requires comparing a **baseline scenario** (historical system only) with a **project scenario** (same system plus an additional renewable energy project). The addition of renewable projects has been implemented in such a way the user can customize the location, type, and capacity in `project_generators.csv` and can control them in the scenario definition by means of the configuration settings `backcasting.project` (for more details, see section [Configuration](configuration.md)). The actual implementation in the original PyPSA-Eur workflow is handled by the rule `add_project_generators.py`, which is described below.
+
+**Implementation:**
+
+A new rule has been integrated in the original PyPSA-Eur workflow named `add_project_generators`, whose script is `add_project_generators.py`. The rule rule lies between `add_existing_baseyear` and `solve_sector_network_myopic`. For baseline scenarios (`backcasting.project.enable: false`) the rule is skipped.
+
+```
+add_existing_baseyear
+    → resources/networks/...{Y}_brownfield.nc
+add_project_generators          ← NEW (runs only when backcasting.project.enable: true)
+    → resources/networks/...{Y}_brownfield_project.nc
+solve_sector_network_myopic
+    (reads _brownfield_project.nc if project.enable else _brownfield.nc)
+```
+
+For each scenario, the script reads the `project_generators.csv` file and considers only the renewable projects defined in the scenario, filtering by `backcasting.project.carrier`, `backcasting.project.size`, and `backcasting.project.country`. In particular, for each renewable project to be added, the script:
+1. Finds the first AC bus for the row `country` code.
+2. Looks up the **source generator** `"{bus} {resource_class} {carrier}-{baseyear}"` (created by `add_existing_baseyear`) to copy techno-economic parameters from. Falls back to the first generator with the same carrier on the same bus if the exact key is absent.
+3. Copies `marginal_cost`, `capital_cost`, `efficiency`, and the hourly `p_max_pu` profile from the source generator.
+4. Adds a **fixed-capacity** generator (`p_nom_extendable=False`, `p_nom = p_nom_min = p_nom_max = p_nom_MW`).
+   - Name convention: `"{bus} {resource_class} {carrier}-project-{baseyear}"`.
+   - `build_year = baseyear` (semantically correct; numerically irrelevant for dispatch-only runs).
+
+### 2) Technology cost data alignment
+**Affected files**
+
+- **Script/function:** [`rules/retrieve.smk`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/rules/retrieve.smk).
+- **Configuration settings:** `backcasting.enable` and `backcasting.year_costs`.
 
 **Motivation:**
 
@@ -47,7 +77,7 @@ if config.get("backcasting", {}).get("enable", False):
 - The rule takes precedence over the default `retrieve_cost_data` rule for the same output file.
 - Only the fossil fuel prices for each simulation year are exogenously set via [`data/custom_costs.csv`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/data/custom_costs.csv) overrides (source: [World Bank Commodity prices](https://www.worldbank.org/en/research/commodity-markets)).
 
-### `noisy_costs` alignment
+### 3) `noisy_costs` alignment
 **Script/function:** [`scripts/solve_network.py/prepare_network()`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/solve_network.py#L423)
 
 **Motivation:**

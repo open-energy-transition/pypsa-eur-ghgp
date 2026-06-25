@@ -459,17 +459,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#modeling-of-additional-renewable-projects" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Modeling of additional renewable projects
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#scenario-development" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -482,10 +471,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#technology-cost-data-alignment" class="md-nav__link">
+  <a href="#1-modeling-of-additional-renewable-projects" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Technology cost data alignment
+        1) Modeling of additional renewable projects
       
     </span>
   </a>
@@ -493,10 +482,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#noisy_costs-alignment" class="md-nav__link">
+  <a href="#2-technology-cost-data-alignment" class="md-nav__link">
     <span class="md-ellipsis">
       
-        noisy_costs alignment
+        2) Technology cost data alignment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-noisy_costs-alignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3) noisy_costs alignment
       
     </span>
   </a>
@@ -618,17 +618,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#modeling-of-additional-renewable-projects" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Modeling of additional renewable projects
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#scenario-development" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -641,10 +630,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#technology-cost-data-alignment" class="md-nav__link">
+  <a href="#1-modeling-of-additional-renewable-projects" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Technology cost data alignment
+        1) Modeling of additional renewable projects
       
     </span>
   </a>
@@ -652,10 +641,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#noisy_costs-alignment" class="md-nav__link">
+  <a href="#2-technology-cost-data-alignment" class="md-nav__link">
     <span class="md-ellipsis">
       
-        noisy_costs alignment
+        2) Technology cost data alignment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-noisy_costs-alignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3) noisy_costs alignment
       
     </span>
   </a>
@@ -749,13 +749,39 @@
 <h1 id="scenarios">Scenarios</h1>
 <p>This section includes all the additional code compared to the <a href="https://github.com/open-energy-transition/pypsa-eur">upstream PyPSA-EUR</a>. These changes were needed to correctly develop and run the model.</p>
 <hr />
-<h2 id="modeling-of-additional-renewable-projects">Modeling of additional renewable projects</h2>
-<hr />
 <h2 id="scenario-development">Scenario development</h2>
-<h3 id="technology-cost-data-alignment">Technology cost data alignment</h3>
-<p><strong>Affected files</strong>
-- <strong>Script/function:</strong> <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/rules/retrieve.smk"><code>rules/retrieve.smk</code></a>
-- <strong>Configuration settings:</strong> <code>backcasting.enable</code> and <code>backcasting.year_costs</code></p>
+<h3 id="1-modeling-of-additional-renewable-projects">1) Modeling of additional renewable projects</h3>
+<p><strong>Affected files</strong></p>
+<ul>
+<li><strong>Rule:</strong>: <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/rules/solve_myopic.smk#L107">`rules/solve_myopic.smk/add_project_generators</a>.</li>
+<li><strong>Script/function:</strong> <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/rmi/add_project_generators.py"><code>scripts/rmi/add_project_generators.py</code></a></li>
+<li><strong>Configuration settings:</strong> <code>backcasting.project</code>.</li>
+<li><strong>File:</strong> <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/data/project_generators.csv"><code>data/project_generators.csv</code></a>.</li>
+</ul>
+<p><strong>Motivation:</strong></p>
+<p>The project requires comparing a <strong>baseline scenario</strong> (historical system only) with a <strong>project scenario</strong> (same system plus an additional renewable energy project). The addition of renewable projects has been implemented in such a way the user can customize the location, type, and capacity in <code>project_generators.csv</code> and can control them in the scenario definition by means of the configuration settings <code>backcasting.project</code> (for more details, see section <a href="configuration.md">Configuration</a>). The actual implementation in the original PyPSA-Eur workflow is handled by the rule <code>add_project_generators.py</code>, which is described below.</p>
+<p><strong>Implementation:</strong></p>
+<p>A new rule has been integrated in the original PyPSA-Eur workflow named <code>add_project_generators</code>, whose script is <code>add_project_generators.py</code>. The rule rule lies between <code>add_existing_baseyear</code> and <code>solve_sector_network_myopic</code>. For baseline scenarios (<code>backcasting.project.enable: false</code>) the rule is skipped.</p>
+<pre><code>add_existing_baseyear
+    → resources/networks/...{Y}_brownfield.nc
+add_project_generators          ← NEW (runs only when backcasting.project.enable: true)
+    → resources/networks/...{Y}_brownfield_project.nc
+solve_sector_network_myopic
+    (reads _brownfield_project.nc if project.enable else _brownfield.nc)
+</code></pre>
+<p>For each scenario, the script reads the <code>project_generators.csv</code> file and considers only the renewable projects defined in the scenario, filtering by <code>backcasting.project.carrier</code>, <code>backcasting.project.size</code>, and <code>backcasting.project.country</code>. In particular, for each renewable project to be added, the script:
+1. Finds the first AC bus for the row <code>country</code> code.
+2. Looks up the <strong>source generator</strong> <code>"{bus} {resource_class} {carrier}-{baseyear}"</code> (created by <code>add_existing_baseyear</code>) to copy techno-economic parameters from. Falls back to the first generator with the same carrier on the same bus if the exact key is absent.
+3. Copies <code>marginal_cost</code>, <code>capital_cost</code>, <code>efficiency</code>, and the hourly <code>p_max_pu</code> profile from the source generator.
+4. Adds a <strong>fixed-capacity</strong> generator (<code>p_nom_extendable=False</code>, <code>p_nom = p_nom_min = p_nom_max = p_nom_MW</code>).
+   - Name convention: <code>"{bus} {resource_class} {carrier}-project-{baseyear}"</code>.
+   - <code>build_year = baseyear</code> (semantically correct; numerically irrelevant for dispatch-only runs).</p>
+<h3 id="2-technology-cost-data-alignment">2) Technology cost data alignment</h3>
+<p><strong>Affected files</strong></p>
+<ul>
+<li><strong>Script/function:</strong> <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/rules/retrieve.smk"><code>rules/retrieve.smk</code></a>.</li>
+<li><strong>Configuration settings:</strong> <code>backcasting.enable</code> and <code>backcasting.year_costs</code>.</li>
+</ul>
 <p><strong>Motivation:</strong></p>
 <p>The <a href="https://github.com/pypsa/technology-data">upstream technology cost database</a> currently provides techno-economic parameters files only for milestone years from 2020 to 2050, with 5-years intervals. Instead, no files are created for intermediate years, e.g., 2021–2024. However, PyPSA-Eur expects a cost file named <code>costs_{planning_horizons[0]}.csv</code> for each scenario year. To enable backcasting for these years, a workflow is needed to generate the required cost files.</p>
 <p><strong>Implementation:</strong></p>
@@ -783,7 +809,7 @@
 <li>The rule takes precedence over the default <code>retrieve_cost_data</code> rule for the same output file.</li>
 <li>Only the fossil fuel prices for each simulation year are exogenously set via <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/data/custom_costs.csv"><code>data/custom_costs.csv</code></a> overrides (source: <a href="https://www.worldbank.org/en/research/commodity-markets">World Bank Commodity prices</a>).</li>
 </ul>
-<h3 id="noisy_costs-alignment"><code>noisy_costs</code> alignment</h3>
+<h3 id="3-noisy_costs-alignment">3) <code>noisy_costs</code> alignment</h3>
 <p><strong>Script/function:</strong> <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/solve_network.py#L423"><code>scripts/solve_network.py/prepare_network()</code></a></p>
 <p><strong>Motivation:</strong></p>
 <p>PyPSA-Eur applies by default small random perturbations to marginal costs (<code>solving.options.noisy_costs: true</code>) to mitigate potential optimization problem degeneracy and ensure a unique optimal solution. The pereturbation is implemented by means of <code>np.random.seed(solve_opts.get("seed", 123))</code>, before solving the network. In particular, the seed is fixed, so the sequence of perturbations is deterministic and depends on the number of components in the network.</p>
