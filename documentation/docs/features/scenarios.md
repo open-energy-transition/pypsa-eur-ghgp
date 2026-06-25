@@ -9,18 +9,18 @@ This section includes all the additional code compared to the [upstream PyPSA-EU
 ### 1) Modeling of additional renewable projects
 **Affected files**
 
-- **Rule:**: [`rules/solve_myopic.smk/add_project_generators](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/rules/solve_myopic.smk#L107).
+- **Rule:**: [`rules/solve_myopic.smk/add_project_generators`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/rules/solve_myopic.smk#L107).
 - **Script/function:** [`scripts/rmi/add_project_generators.py`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/rmi/add_project_generators.py)
 - **Configuration settings:** `backcasting.project`.
 - **File:** [`data/project_generators.csv`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/data/project_generators.csv).
   
 **Motivation:**
 
-The project requires comparing a **baseline scenario** (historical system only) with a **project scenario** (same system plus an additional renewable energy project). The addition of renewable projects has been implemented in such a way the user can customize the location, type, and capacity in `project_generators.csv` and can control them in the scenario definition by means of the configuration settings `backcasting.project` (for more details, see section [Configuration](configuration.md)). The actual implementation in the original PyPSA-Eur workflow is handled by the rule `add_project_generators.py`, which is described below.
+The project requires comparing a **baseline scenario** (historical system only) with a **project scenario** (same system plus an additional renewable energy project). The addition of renewable projects has been implemented in such a way the user can customize the location, type, and capacity in `project_generators.csv` and can control them in the scenario definition by means of the configuration settings `backcasting.project` (for more details, see section [Configuration](configuration.md)). The implementation PyPSA-Eur workflow is handled by the rule `add_project_generators.py`, which is described below.
 
 **Implementation:**
 
-A new rule has been integrated in the original PyPSA-Eur workflow named `add_project_generators`, whose script is `add_project_generators.py`. The rule rule lies between `add_existing_baseyear` and `solve_sector_network_myopic`. For baseline scenarios (`backcasting.project.enable: false`) the rule is skipped.
+A new rule has been integrated in the original PyPSA-Eur workflow named `add_project_generators`, whose script is `add_project_generators.py`. The rule lies between `add_existing_baseyear` and `solve_sector_network_myopic`. For baseline scenarios (`backcasting.project.enable: false`) the rule is skipped.
 
 ```
 add_existing_baseyear
@@ -32,10 +32,12 @@ solve_sector_network_myopic
 ```
 
 For each scenario, the script reads the `project_generators.csv` file and considers only the renewable projects defined in the scenario, filtering by `backcasting.project.carrier`, `backcasting.project.size`, and `backcasting.project.country`. In particular, for each renewable project to be added, the script:
+
 1. Finds the first AC bus for the row `country` code.
 2. Looks up the **source generator** `"{bus} {resource_class} {carrier}-{baseyear}"` (created by `add_existing_baseyear`) to copy techno-economic parameters from. Falls back to the first generator with the same carrier on the same bus if the exact key is absent.
 3. Copies `marginal_cost`, `capital_cost`, `efficiency`, and the hourly `p_max_pu` profile from the source generator.
-4. Adds a **fixed-capacity** generator (`p_nom_extendable=False`, `p_nom = p_nom_min = p_nom_max = p_nom_MW`).
+4. Adds a **fixed-capacity** generator (`p_nom_extendable=False`, `p_nom = p_nom_min = p_nom_max = p_nom_MW`):
+   
    - Name convention: `"{bus} {resource_class} {carrier}-project-{baseyear}"`.
    - `build_year = baseyear` (semantically correct; numerically irrelevant for dispatch-only runs).
 
@@ -78,7 +80,7 @@ if config.get("backcasting", {}).get("enable", False):
 - Only the fossil fuel prices for each simulation year are exogenously set via [`data/custom_costs.csv`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/data/custom_costs.csv) overrides (source: [World Bank Commodity prices](https://www.worldbank.org/en/research/commodity-markets)).
 
 ### 3) `noisy_costs` alignment
-**Script/function:** [`scripts/solve_network.py/prepare_network()`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/solve_network.py#L423)
+**Script/function:** [`scripts/solve_network.py/prepare_network()`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/solve_network.py#L423).
 
 **Motivation:**
 
@@ -140,8 +142,9 @@ Consider that the naming convention (`"project"` substring in generator names) i
 **Motivation:**
 
 This script has been developed for two main reasons:
+
 1. Allow the user to interactively and automatically run the scenarios available in [`config/scenarios.rmi.yaml`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/scenarios.rmi.yaml) (for more details, see section [Introduction](introduction.md)).
-2. Identify the resources (i.e., the intermediate files generated when running each scenario) that are common across the scenarios, reducing the number of rules included in the snakemake workflows. For more details on the pypsa workflow management, see the [Snakemake documentation](https://snakemake.readthedocs.io/en/stable/index.html).
+2. Identify the resources (i.e., the intermediate files generated when running each scenario) that are common across the scenarios, reducing the number of rules to be run in the snakemake workflows. For more details on the pypsa workflow management, see the [Snakemake documentation](https://snakemake.readthedocs.io/en/stable/index.html).
 
 **Implementation:**
 
@@ -149,9 +152,10 @@ Whereas the interactive steps are outlined in section [Introduction](introductio
 
 1. *Baseline → baseline (cross-year):* symlink only **year-indipendent files**.
    
-    Many resource files (cutout profiles, geographic shapes, OSM network, busmap, etc.) do not depend on the simulation year and are identical across all baseline scenarios. The reference is always the `baseline-2025` scenario (detected automatically from the scenarios file).
+    Many resource files (cutout profiles, geographic shapes, OSM network, busmap, etc.) do not depend on the simulation year and are identical across all baseline scenarios. The reference is always the `baseline-2025` scenario (detected automatically from `config/scenarios.rmi.yaml`).
 
     Year-independent files:
+
     - `availability_matrix_{clusters}_{tech}.nc`.
     - `regions_*.geojson` / `*_shapes.geojson`.
     - `networks/base*.nc`.
@@ -160,5 +164,6 @@ Whereas the interactive steps are outlined in section [Introduction](introductio
 2. *Baseline → project (same year):* symlink **all resource files**.
    
     A project scenario shares every configuration key with its same-year baseline: `planning_horizons`, `powerplants_filter`, `fixed_year`, `costs.year`, `energy_totals_year`, `biomass`, `existing_capacities`. Therefore, all resources up to and including `*_brownfield.nc` are identical. Only two rules need to run for a project scenario:
+    
     - `add_project_generators`  (produces `*_brownfield_project.nc`).
     - `solve_sector_network_myopic`.

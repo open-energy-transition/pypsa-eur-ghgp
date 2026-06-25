@@ -5,15 +5,17 @@ This section includes all the other modifications applied to the [upstream PyPSA
 ---
 
 ## Modeling of existing biomass power plants when `sector.biomass: false`
-**Script/function:** `scripts/add_existing_baseyear.py/add_power_capacities_installed_before_baseyear()`(https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/add_existing_baseyear.py#L162).
+**Script/function:** [`scripts/add_existing_baseyear.py/add_power_capacities_installed_before_baseyear()`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/add_existing_baseyear.py#L162).
 
 **Issue:**
 
-This bug is due to the combination of the project configuration settings `sector.biomass: false` and `biomass` included in `pypsa_eur.Generator`. The former is needed as the model is limited to the electricity sector only, with the aim not to model biomas-related technologies, including biomass CHP as links. Instead, the latter guarantee to keep the existing biomass power plants (including the CHP ones) as generators. If this is the case:
+This bug is due to the combination of the project configuration settings `sector.biomass: false` and `biomass` included in `pypsa_eur.Generator`. The former is needed as the model is limited to the electricity sector only, with the aim not to model biomas-related technologies, including biomass CHP as links. Instead, the latter guarantees to keep the existing biomass power plants (including the CHP ones) as generators. If this is the case:
+
 - `add_biomass()` is never called in [`scripts/prepare_sector_network.py`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/prepare_sector_network.py), so that the `"EU solid biomass"` buses (i.e., the `bus0` of CHP links) are never created.
 - **despite this**, `add_existing_baseyear.py` would still add the CHP links unconditionally. It would create the missing `"<node> solid biomass"` buses, add the links with `bus0` pointing to those phantom buses, and left no `Generator` providing energy to that bus.
 
 This would cause two problems simultaneously:
+
 1. **Double-counting**: both generators and links representing the same physical plants.
 2. **Free fuel**: the phantom `bus0` bus would not have supply (no `Generator` or `Store`), so its energy balance would be unconstrained (i.e., biomass fuel was effectively free).
 

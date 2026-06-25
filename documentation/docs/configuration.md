@@ -3,10 +3,11 @@
 This section includes all the configuration settings characterizing the available scenarios. These settings have been defined aiming to develop a dispatch-only model for the historical period 2020-2025. Also, the differences compared to the default configuration settings are described.
 
 The full model configurations are defined in two files:
+
 - [`config/config.rmi.yaml`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/config.rmi.yaml), which includes the common settings across the available scenarios.
 - [`config/scenarios.rmi.yaml`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/scenarios.rmi.yaml), which includes the scenario specific settings.
 
-Consider that PyPSA-Eur utilizes a hierarchical configuration structure to manage its modeling assumptions and scenarios. In particular, the default settings defined in [`config/config.default.yaml`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/config.default.yaml) are overwritten by the ones in `config/config.rmi.yaml`, which in turn are overwritten by the ones in `config/scenarios.rmi.yaml`. For more details on the default configuration settings, see the [original PyPSA-Eur documentation](https://pypsa-eur.readthedocs.io/en/latest/configuration/).
+Consider that PyPSA-Eur utilizes a hierarchical configuration structure to manage its modeling assumptions and scenarios. In particular, the default settings defined in [`config/config.default.yaml`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/config.default.yaml) are overridden by the ones in `config/config.rmi.yaml`, which in turn are overridden by the ones in `config/scenarios.rmi.yaml`. For more details on the default configuration settings, see the [original PyPSA-Eur documentation](https://pypsa-eur.readthedocs.io/en/latest/configuration/).
 
 ---
 
@@ -42,7 +43,7 @@ run:
 
 ### `foresight`
 
-Section to define the foresight mode.
+Section to define the foresight mode of the optimization problem.
 
 | Property | Type | Value | Default | Description |
 |---|---|---|---|---|
@@ -54,7 +55,7 @@ foresight: myopic
 
 ### `scenario`
 
-Section strongly connected to the wildcards (for more details, see the [original PyPSA-Eur documentation](https://pypsa-eur.readthedocs.io/en/latest/configuration/#wildcards)), which is designed to facilitate running multiple scenarios through a single command
+Section strongly connected to the wildcards (for more details, see the [original PyPSA-Eur documentation](https://pypsa-eur.readthedocs.io/en/latest/configuration/#wildcards)), which is designed to facilitate running multiple scenarios through a single command.
 
 | Property | Type | Value | Default | Description |
 |---|---|---|---|---|
@@ -228,6 +229,9 @@ Section to control whether to include or not sectors other than the electricity 
 | `methanation` | bool | `false` | `true` | Power-to-gas methanation |
 | `regional_oil_demand` | bool | `false` | `true` | Regional oil demand buses |
 
+
+All sector-coupled demand and supply sectors are disabled to run a pure electricity dispatch model.
+
 ```yaml
 sector:
   biomass: false
@@ -260,8 +264,6 @@ sector:
   regional_oil_demand: false
 ```
 
-All sector-coupled demand and supply sectors are disabled to run a pure electricity dispatch model.
-
 ### `costs`
 
 | Property | Type | Value | Default | Description |
@@ -292,7 +294,7 @@ clustering:
 
 ### `adjustments`
 
-Post-build capacity overrides applied after the network is assembled. Used to enforce zero capacity on H2 infrastructure unconditionally added by `prepare_sector_network.py`.
+Post-build capacity overrides applied after the network is assembled.
 
 | Property | Type | Value | Default | Description |
 |---|---|---|---|---|
@@ -302,6 +304,8 @@ Post-build capacity overrides applied after the network is assembled. Used to en
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`↳ H2 Electrolysis.p_nom_max` | float | `0.0` | `false` | Forces H2 Electrolysis installed capacity to zero |
 | &nbsp;&nbsp;&nbsp;&nbsp;`↳ Store` | — | — | — | |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`↳ H2 Store.e_nom_max` | float | `0.0` | `false` | Forces H2 Store energy capacity to zero |
+
+Used to enforce zero capacity on H2 infrastructure unconditionally added by `prepare_sector_network.py`.
 
 ```yaml
 adjustments:
@@ -336,13 +340,13 @@ All the Scenario specific settings and properties are described below, pointing 
 
 ### Baseline scenarios
 
-Six baseline scenarios are available, one per backcasting year: `baseline-2020-3H`, `baseline-2021-3H`, `baseline-2022-3H`, `baseline-2023-3H`, `baseline-2024-3H`, `baseline-2025-3H`. Each represents a full-year dispatch simulation of the European electricity system for the corresponding historical year.
+Six baseline scenarios are available, one per simulation year: `baseline-2020-3H`, `baseline-2021-3H`, `baseline-2022-3H`, `baseline-2023-3H`, `baseline-2024-3H`, `baseline-2025-3H`. Each represents a full-year dispatch simulation of the European electricity system for the corresponding historical year.
 
 #### `scenario`
 
 | Property | Type | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 | Default | Description |
 |---|---|---|---|---|---|---|---|---|---|
-| `planning_horizons` | list[int] | `[2020]` | `[2021]` | `[2022]` | `[2023]` | `[2024]` | `[2025]` | `[2050]` | Simulation year; controls the IRENASTAT cutoff, existing capacity baseyear, and cost file selection |
+| `planning_horizons` | list[int] | `[2020]` | `[2021]` | `[2022]` | `[2023]` | `[2024]` | `[2025]` | `[2050]` | Simulation year |
 
 ```yaml
 # Example: baseline-2024-3H
@@ -368,6 +372,8 @@ atlite:
 ```
 
 #### `snapshots`
+
+This section controls the simulation year time-steps.
 
 | Property | Type | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 | Default | Description |
 |---|---|---|---|---|---|---|---|---|---|
@@ -398,7 +404,7 @@ electricity:
 
 | Property | Type | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 | Default | Description |
 |---|---|---|---|---|---|---|---|---|---|
-| `fixed_year` | int | `2020` | `2021` | `2022` | `2023` | `2024` | `2025` | `false` | Year whose historical demand profile is applied to the simulation snapshots. If `false`, the weather year is applied |
+| `fixed_year` | int | `2020` | `2021` | `2022` | `2023` | `2024` | `2025` | `false` | Reference year for the input electricity demand. If `false`, the weather year is applied |
 
 ```yaml
 # Example: baseline-2024-3H
@@ -444,7 +450,7 @@ existing_capacities:
 
 | Property | Type | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 | Default | Description |
 |---|---|---|---|---|---|---|---|---|---|
-| `year` | int | `2020` | `2021` | `2022` | `2023` | `2024` | `2025` | `2050` | Technology cost year; selects the correct `costs_{year}.csv` file |
+| `year` | int | `2020` | `2021` | `2022` | `2023` | `2024` | `2025` | `2050` | Technology cost year; selects the `costs_{year}.csv` file |
 
 ```yaml
 # Example: baseline-2024-3H
@@ -499,7 +505,7 @@ backcasting:
 
 ### Project scenarios
 
-Project scenarios add a single renewable energy generator on top of the corresponding baseline network, representing a specific real-world investment (e.g., a solar PPA), and are used to compute the counterfactual emission impact.
+Project scenarios add a single renewable energy generator on top of the corresponding baseline network, representing a specific real-world investment.
 
 Three project types have been modeled, one per geography:
 
@@ -507,11 +513,11 @@ Three project types have been modeled, one per geography:
 |---|---|---|---|---|
 | `DE-solar-100MW` | Germany (`DE`) | `solar` | 100 MW | Representative utility-scale solar PPA in Germany, among the largest electricity market in the EU |
 | `RO-solar-100MW` | Romania (`RO`) | `solar` | 100 MW | Solar PPA in Romania, a market with fast-growing renewable capacity |
-| `GB30-onwind-100MW` | Great Britain — node `GB3 0` | `onwind` | 100 MW | Onshore wind project in the UK, representing a wind-dominated market |
+| `GB30-onwind-100MW` | Great Britain — node `GB3 0` | `onwind` | 100 MW | Onshore wind project in Northern Ireland, representing a wind-dominated market |
 
 Project generators are defined in [`data/project_generators.csv`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/data/project_generators.csv) and injected into the network by the `add_project_generators` Snakemake rule.
 
-For each project type, six scenarios are available (one per year 2020–2025), named e.g. `project-2024-3H-DE-solar-100MW`. All year-specific settings (`scenario`, `atlite`, `snapshots`, `electricity`, `load`, `existing_capacities`, `costs`, `biomass`, `energy`) are **identical to the corresponding baseline scenario**, and are not repeated here for brevity.
+For each project type, six scenarios are available (one per year 2020–2025), named, e.g. `project-2024-3H-DE-solar-100MW`. All year-specific settings (`scenario`, `atlite`, `snapshots`, `electricity`, `load`, `existing_capacities`, `costs`, `biomass`, `energy`) are **identical to the corresponding baseline scenario**, and are not repeated here for brevity.
 
 The only additional setting compared to the baseline is `backcasting.project`, which is overridden to activate the project generator injection:
 
@@ -543,6 +549,7 @@ backcasting:
 ## Test model configurations
 
 Finally, a test configuration has been developed for a test toy model, which was very useful in the initial phase of the model development. The files involved are:
+
 - [`config/test/config.rmi.DE.yaml`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/test/config.rmi.DE.yaml).
 - [`config/test/scenarios.rmi.DE.yaml`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/test/scenarios.rmi.DE.yaml).
 

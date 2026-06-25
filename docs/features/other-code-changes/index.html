@@ -692,14 +692,18 @@
 <p>This section includes all the other modifications applied to the <a href="https://github.com/open-energy-transition/pypsa-eur">upstream PyPSA-EUR</a> scripts. These are minor code changes not directly related to model calibration, but needed to correctly run the scenarios with the configuration settings described in section <a href="configuration.md">Configuration</a>.</p>
 <hr />
 <h2 id="modeling-of-existing-biomass-power-plants-when-sectorbiomass-false">Modeling of existing biomass power plants when <code>sector.biomass: false</code></h2>
-<p><strong>Script/function:</strong> <code>scripts/add_existing_baseyear.py/add_power_capacities_installed_before_baseyear()</code>(https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/add_existing_baseyear.py#L162).</p>
+<p><strong>Script/function:</strong> <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/add_existing_baseyear.py#L162"><code>scripts/add_existing_baseyear.py/add_power_capacities_installed_before_baseyear()</code></a>.</p>
 <p><strong>Issue:</strong></p>
-<p>This bug is due to the combination of the project configuration settings <code>sector.biomass: false</code> and <code>biomass</code> included in <code>pypsa_eur.Generator</code>. The former is needed as the model is limited to the electricity sector only, with the aim not to model biomas-related technologies, including biomass CHP as links. Instead, the latter guarantee to keep the existing biomass power plants (including the CHP ones) as generators. If this is the case:
-- <code>add_biomass()</code> is never called in <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/prepare_sector_network.py"><code>scripts/prepare_sector_network.py</code></a>, so that the <code>"EU solid biomass"</code> buses (i.e., the <code>bus0</code> of CHP links) are never created.
-- <strong>despite this</strong>, <code>add_existing_baseyear.py</code> would still add the CHP links unconditionally. It would create the missing <code>"&lt;node&gt; solid biomass"</code> buses, add the links with <code>bus0</code> pointing to those phantom buses, and left no <code>Generator</code> providing energy to that bus.</p>
-<p>This would cause two problems simultaneously:
-1. <strong>Double-counting</strong>: both generators and links representing the same physical plants.
-2. <strong>Free fuel</strong>: the phantom <code>bus0</code> bus would not have supply (no <code>Generator</code> or <code>Store</code>), so its energy balance would be unconstrained (i.e., biomass fuel was effectively free).</p>
+<p>This bug is due to the combination of the project configuration settings <code>sector.biomass: false</code> and <code>biomass</code> included in <code>pypsa_eur.Generator</code>. The former is needed as the model is limited to the electricity sector only, with the aim not to model biomas-related technologies, including biomass CHP as links. Instead, the latter guarantees to keep the existing biomass power plants (including the CHP ones) as generators. If this is the case:</p>
+<ul>
+<li><code>add_biomass()</code> is never called in <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/prepare_sector_network.py"><code>scripts/prepare_sector_network.py</code></a>, so that the <code>"EU solid biomass"</code> buses (i.e., the <code>bus0</code> of CHP links) are never created.</li>
+<li><strong>despite this</strong>, <code>add_existing_baseyear.py</code> would still add the CHP links unconditionally. It would create the missing <code>"&lt;node&gt; solid biomass"</code> buses, add the links with <code>bus0</code> pointing to those phantom buses, and left no <code>Generator</code> providing energy to that bus.</li>
+</ul>
+<p>This would cause two problems simultaneously:</p>
+<ol>
+<li><strong>Double-counting</strong>: both generators and links representing the same physical plants.</li>
+<li><strong>Free fuel</strong>: the phantom <code>bus0</code> bus would not have supply (no <code>Generator</code> or <code>Store</code>), so its energy balance would be unconstrained (i.e., biomass fuel was effectively free).</li>
+</ol>
 <p>Without <code>biomass</code> in <code>pypsa_eur.Generator</code> (PyPSA-Eur default setting): <code>remove_elec_base_techs()</code> would drop the generators in <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/prepare_sector_network.py"><code>scripts/prepare_sector_networ.py</code></a>, so only the links would remain. The double-counting would not occur, but the free-fuel problem would still be present (phantom bus with no supply). The implemented fix addresses both the problems.</p>
 <p><strong>New code:</strong></p>
 <pre><code class="language-python"># scripts/add_existing_baseyear.py/add_power_capacities_installed_before_baseyear()

@@ -8,7 +8,7 @@ This section includes all the changes applied to the [upstream PyPSA-EUR](https:
 Details and examples of such issues, alongside the solutions implemented in the project to partially overcome them, are provided below.
 
 !!! note
-    This is not meant to be a comprehensive description of the calibration needs of PyPSA-Eur, as it is based on this specific project. Also, the latter did not involve any direct calibration activities. Instead, the description below is meant to be a starting point to investigate whether, and to which extent, further calibrating PyPSA-Eur might be useful for the PyPSA-EURcommunity. In this regard, the topic has been raised in the [discord server](https://discord.com/invite/AnuJBk23FU).
+    This is not meant to be a comprehensive description of the calibration needs of PyPSA-Eur, as it is based on this specific project. Also, the latter did not involve any direct calibration activities. Instead, the description below is meant to be a starting point to investigate whether, and to which extent, further calibrating PyPSA-Eur might be useful for the PyPSA-EUR community. In this regard, the topic has been raised in the [discord server](https://discord.com/invite/AnuJBk23FU).
 
 ---
 
@@ -73,7 +73,7 @@ totals = totals.loc[idx[:, data_years], :].groupby("country").mean() #!!! KeyErr
 This code would generate this error:
 > raise KeyError(key) from err
 
-**New code:** substitute the code above with:
+**New code:**
 ```python
 if snakemake.wildcards.kind == "heat":
     snapshots = get_snapshots(
@@ -136,11 +136,11 @@ except (ValueError, TypeError):
 
 **Issue:**
 
-Existing capacities added in years > calibration year are accounted for when considering existing solar and wind capacities.
+Existing capacities added in years > simulation year are accounted for when considering existing solar and wind capacities.
 
 **Example:**
 
-*Calibration year=2023, carrier=`solar`, country=`DE`*
+*Simulation year=2023, carrier=`solar`, country=`DE`*
 
 When analyzing the network `n` after `add_existing_baseyear`:
 ```python

@@ -1292,10 +1292,12 @@
 
 <h1 id="configuration">Configuration</h1>
 <p>This section includes all the configuration settings characterizing the available scenarios. These settings have been defined aiming to develop a dispatch-only model for the historical period 2020-2025. Also, the differences compared to the default configuration settings are described.</p>
-<p>The full model configurations are defined in two files:
-- <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/config.rmi.yaml"><code>config/config.rmi.yaml</code></a>, which includes the common settings across the available scenarios.
-- <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/scenarios.rmi.yaml"><code>config/scenarios.rmi.yaml</code></a>, which includes the scenario specific settings.</p>
-<p>Consider that PyPSA-Eur utilizes a hierarchical configuration structure to manage its modeling assumptions and scenarios. In particular, the default settings defined in <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/config.default.yaml"><code>config/config.default.yaml</code></a> are overwritten by the ones in <code>config/config.rmi.yaml</code>, which in turn are overwritten by the ones in <code>config/scenarios.rmi.yaml</code>. For more details on the default configuration settings, see the <a href="https://pypsa-eur.readthedocs.io/en/latest/configuration/">original PyPSA-Eur documentation</a>.</p>
+<p>The full model configurations are defined in two files:</p>
+<ul>
+<li><a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/config.rmi.yaml"><code>config/config.rmi.yaml</code></a>, which includes the common settings across the available scenarios.</li>
+<li><a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/scenarios.rmi.yaml"><code>config/scenarios.rmi.yaml</code></a>, which includes the scenario specific settings.</li>
+</ul>
+<p>Consider that PyPSA-Eur utilizes a hierarchical configuration structure to manage its modeling assumptions and scenarios. In particular, the default settings defined in <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/config.default.yaml"><code>config/config.default.yaml</code></a> are overridden by the ones in <code>config/config.rmi.yaml</code>, which in turn are overridden by the ones in <code>config/scenarios.rmi.yaml</code>. For more details on the default configuration settings, see the <a href="https://pypsa-eur.readthedocs.io/en/latest/configuration/">original PyPSA-Eur documentation</a>.</p>
 <hr />
 <h2 id="common-settings-configconfigrmiyaml">Common settings (<code>config/config.rmi.yaml</code>)</h2>
 <p>All the common settings and properties are described below, pointing out only the differences with the default ones.</p>
@@ -1356,7 +1358,7 @@
   use_shadow_directory: false
 </code></pre>
 <h3 id="foresight"><code>foresight</code></h3>
-<p>Section to define the foresight mode.</p>
+<p>Section to define the foresight mode of the optimization problem.</p>
 <table>
 <thead>
 <tr>
@@ -1380,7 +1382,7 @@
 <pre><code class="language-yaml">foresight: myopic
 </code></pre>
 <h3 id="scenario"><code>scenario</code></h3>
-<p>Section strongly connected to the wildcards (for more details, see the <a href="https://pypsa-eur.readthedocs.io/en/latest/configuration/#wildcards">original PyPSA-Eur documentation</a>), which is designed to facilitate running multiple scenarios through a single command</p>
+<p>Section strongly connected to the wildcards (for more details, see the <a href="https://pypsa-eur.readthedocs.io/en/latest/configuration/#wildcards">original PyPSA-Eur documentation</a>), which is designed to facilitate running multiple scenarios through a single command.</p>
 <table>
 <thead>
 <tr>
@@ -1893,6 +1895,7 @@
 </tr>
 </tbody>
 </table>
+<p>All sector-coupled demand and supply sectors are disabled to run a pure electricity dispatch model.</p>
 <pre><code class="language-yaml">sector:
   biomass: false
   transport: false
@@ -1923,7 +1926,6 @@
   methanation: false
   regional_oil_demand: false
 </code></pre>
-<p>All sector-coupled demand and supply sectors are disabled to run a pure electricity dispatch model.</p>
 <h3 id="costs"><code>costs</code></h3>
 <table>
 <thead>
@@ -1997,7 +1999,7 @@
     resolution_sector: 3H
 </code></pre>
 <h3 id="adjustments"><code>adjustments</code></h3>
-<p>Post-build capacity overrides applied after the network is assembled. Used to enforce zero capacity on H2 infrastructure unconditionally added by <code>prepare_sector_network.py</code>.</p>
+<p>Post-build capacity overrides applied after the network is assembled.</p>
 <table>
 <thead>
 <tr>
@@ -2053,6 +2055,7 @@
 </tr>
 </tbody>
 </table>
+<p>Used to enforce zero capacity on H2 infrastructure unconditionally added by <code>prepare_sector_network.py</code>.</p>
 <pre><code class="language-yaml">adjustments:
   sector:
     absolute:
@@ -2099,7 +2102,7 @@
 <h2 id="scenario-specific-settings-configscenariosrmiyaml">Scenario specific settings (<code>config/scenarios.rmi.yaml</code>)</h2>
 <p>All the Scenario specific settings and properties are described below, pointing out only the differences with the default ones. Each scenario is identified by a unique name (e.g., <code>baseline-2024-3H</code>), and the settings below describe how each property varies across the available scenarios.</p>
 <h3 id="baseline-scenarios">Baseline scenarios</h3>
-<p>Six baseline scenarios are available, one per backcasting year: <code>baseline-2020-3H</code>, <code>baseline-2021-3H</code>, <code>baseline-2022-3H</code>, <code>baseline-2023-3H</code>, <code>baseline-2024-3H</code>, <code>baseline-2025-3H</code>. Each represents a full-year dispatch simulation of the European electricity system for the corresponding historical year.</p>
+<p>Six baseline scenarios are available, one per simulation year: <code>baseline-2020-3H</code>, <code>baseline-2021-3H</code>, <code>baseline-2022-3H</code>, <code>baseline-2023-3H</code>, <code>baseline-2024-3H</code>, <code>baseline-2025-3H</code>. Each represents a full-year dispatch simulation of the European electricity system for the corresponding historical year.</p>
 <h4 id="scenario_1"><code>scenario</code></h4>
 <table>
 <thead>
@@ -2127,7 +2130,7 @@
 <td><code>[2024]</code></td>
 <td><code>[2025]</code></td>
 <td><code>[2050]</code></td>
-<td>Simulation year; controls the IRENASTAT cutoff, existing capacity baseyear, and cost file selection</td>
+<td>Simulation year</td>
 </tr>
 </tbody>
 </table>
@@ -2174,6 +2177,7 @@ atlite:
   default_cutout: &quot;europe-2024-sarah3-era5&quot;
 </code></pre>
 <h4 id="snapshots"><code>snapshots</code></h4>
+<p>This section controls the simulation year time-steps.</p>
 <table>
 <thead>
 <tr>
@@ -2284,7 +2288,7 @@ electricity:
 <td><code>2024</code></td>
 <td><code>2025</code></td>
 <td><code>false</code></td>
-<td>Year whose historical demand profile is applied to the simulation snapshots. If <code>false</code>, the weather year is applied</td>
+<td>Reference year for the input electricity demand. If <code>false</code>, the weather year is applied</td>
 </tr>
 </tbody>
 </table>
@@ -2377,7 +2381,7 @@ existing_capacities:
 <td><code>2024</code></td>
 <td><code>2025</code></td>
 <td><code>2050</code></td>
-<td>Technology cost year; selects the correct <code>costs_{year}.csv</code> file</td>
+<td>Technology cost year; selects the <code>costs_{year}.csv</code> file</td>
 </tr>
 </tbody>
 </table>
@@ -2511,7 +2515,7 @@ backcasting:
 </code></pre>
 <hr />
 <h3 id="project-scenarios">Project scenarios</h3>
-<p>Project scenarios add a single renewable energy generator on top of the corresponding baseline network, representing a specific real-world investment (e.g., a solar PPA), and are used to compute the counterfactual emission impact.</p>
+<p>Project scenarios add a single renewable energy generator on top of the corresponding baseline network, representing a specific real-world investment.</p>
 <p>Three project types have been modeled, one per geography:</p>
 <table>
 <thead>
@@ -2543,12 +2547,12 @@ backcasting:
 <td>Great Britain — node <code>GB3 0</code></td>
 <td><code>onwind</code></td>
 <td>100 MW</td>
-<td>Onshore wind project in the UK, representing a wind-dominated market</td>
+<td>Onshore wind project in Northern Ireland, representing a wind-dominated market</td>
 </tr>
 </tbody>
 </table>
 <p>Project generators are defined in <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/data/project_generators.csv"><code>data/project_generators.csv</code></a> and injected into the network by the <code>add_project_generators</code> Snakemake rule.</p>
-<p>For each project type, six scenarios are available (one per year 2020–2025), named e.g. <code>project-2024-3H-DE-solar-100MW</code>. All year-specific settings (<code>scenario</code>, <code>atlite</code>, <code>snapshots</code>, <code>electricity</code>, <code>load</code>, <code>existing_capacities</code>, <code>costs</code>, <code>biomass</code>, <code>energy</code>) are <strong>identical to the corresponding baseline scenario</strong>, and are not repeated here for brevity.</p>
+<p>For each project type, six scenarios are available (one per year 2020–2025), named, e.g. <code>project-2024-3H-DE-solar-100MW</code>. All year-specific settings (<code>scenario</code>, <code>atlite</code>, <code>snapshots</code>, <code>electricity</code>, <code>load</code>, <code>existing_capacities</code>, <code>costs</code>, <code>biomass</code>, <code>energy</code>) are <strong>identical to the corresponding baseline scenario</strong>, and are not repeated here for brevity.</p>
 <p>The only additional setting compared to the baseline is <code>backcasting.project</code>, which is overridden to activate the project generator injection:</p>
 <h4 id="backcastingproject"><code>backcasting.project</code></h4>
 <table>
@@ -2624,9 +2628,11 @@ backcasting:
 </code></pre>
 <hr />
 <h2 id="test-model-configurations">Test model configurations</h2>
-<p>Finally, a test configuration has been developed for a test toy model, which was very useful in the initial phase of the model development. The files involved are:
-- <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/test/config.rmi.DE.yaml"><code>config/test/config.rmi.DE.yaml</code></a>.
-- <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/test/scenarios.rmi.DE.yaml"><code>config/test/scenarios.rmi.DE.yaml</code></a>.</p>
+<p>Finally, a test configuration has been developed for a test toy model, which was very useful in the initial phase of the model development. The files involved are:</p>
+<ul>
+<li><a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/test/config.rmi.DE.yaml"><code>config/test/config.rmi.DE.yaml</code></a>.</li>
+<li><a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/test/scenarios.rmi.DE.yaml"><code>config/test/scenarios.rmi.DE.yaml</code></a>.</li>
+</ul>
 <p>The test model only includes Germany, modelled with 2 nodes. Also, the weather year is constant across all the scenarios and equal to default one, i.e., 2013.</p>
 
 
