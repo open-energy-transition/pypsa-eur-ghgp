@@ -332,6 +332,212 @@ solving:
 
 ## Scenario specific settings (`config/scenarios.rmi.yaml`)
 
+All the Scenario specific settings and properties are described below, pointing out only the differences with the default ones. Each scenario is identified by a unique name (e.g., `baseline-2024-3H`), and the settings below describe how each property varies across the available scenarios.
+
+### Baseline scenarios
+
+Six baseline scenarios are available, one per backcasting year: `baseline-2020-3H`, `baseline-2021-3H`, `baseline-2022-3H`, `baseline-2023-3H`, `baseline-2024-3H`, `baseline-2025-3H`. Each represents a full-year dispatch simulation of the European electricity system for the corresponding historical year.
+
+#### `scenario`
+
+| Property | Type | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 | Default | Description |
+|---|---|---|---|---|---|---|---|---|---|
+| `planning_horizons` | list[int] | `[2020]` | `[2021]` | `[2022]` | `[2023]` | `[2024]` | `[2025]` | `[2050]` | Simulation year; controls the IRENASTAT cutoff, existing capacity baseyear, and cost file selection |
+
+```yaml
+# Example: baseline-2024-3H
+scenario:
+  planning_horizons:
+  - 2024
+```
+
+#### `atlite`
+
+This section controls the calculation of renewable potentials and time-series (i.e., the weather year).
+
+| Property | Type | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 | Default | Description |
+|---|---|---|---|---|---|---|---|---|---|
+| `default_cutout` | str | `europe-2020-sarah3-era5` | `europe-2021-sarah3-era5` | `europe-2022-sarah3-era5` | `europe-2023-sarah3-era5` | `europe-2024-sarah3-era5` | `europe-2025-sarah3-era5` | `europe-2013-sarah3-era5` | ERA5 weather cutout used for renewable capacity factor profiles |
+
+The weather year is chosen equal to the simulation year.
+
+```yaml
+# Example: baseline-2024-3H
+atlite:
+  default_cutout: "europe-2024-sarah3-era5"
+```
+
+#### `snapshots`
+
+| Property | Type | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 | Default | Description |
+|---|---|---|---|---|---|---|---|---|---|
+| `start` | str | `2020-01-01` | `2021-01-01` | `2022-01-01` | `2023-01-01` | `2024-01-01` | `2025-01-01` | `2013-01-01` | Start date of the simulation |
+| `end` | str | `2021-01-01` | `2022-01-01` | `2023-01-01` | `2024-01-01` | `2025-01-01` | `2026-01-01` | `2014-01-01` | End date of the simulation (exclusive) |
+
+```yaml
+# Example: baseline-2024-3H
+snapshots:
+  start: "2024-01-01"
+  end: "2025-01-01"
+  inclusive: left
+```
+
+#### `electricity`
+
+| Property | Type | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 | Default | Description |
+|---|---|---|---|---|---|---|---|---|---|
+| `powerplants_filter` | str | `(DateOut > 2020 or DateOut != DateOut) and (DateIn < 2021 or DateIn != DateIn)` | same pattern with Y=2021 | Y=2022 | Y=2023 | Y=2024 | Y=2025 | `(DateOut > 2025 ...) and (DateIn < 2026 ...)` | pandas `.query()` string filtering PPM plants to those operating in year Y |
+
+```yaml
+# Example: baseline-2024-3H
+electricity:
+  powerplants_filter: "(DateOut > 2024 or DateOut != DateOut) and (DateIn < 2025 or DateIn != DateIn)"
+```
+
+#### `load`
+
+| Property | Type | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 | Default | Description |
+|---|---|---|---|---|---|---|---|---|---|
+| `fixed_year` | int | `2020` | `2021` | `2022` | `2023` | `2024` | `2025` | `false` | Year whose historical demand profile is applied to the simulation snapshots. If `false`, the weather year is applied |
+
+```yaml
+# Example: baseline-2024-3H
+load:
+  fixed_year: 2024
+```
+
+#### `existing_capacities`
+
+| Property | Type | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 | Default | Description |
+|---|---|---|---|---|---|---|---|---|---|
+| `grouping_years_power` | list[int] | no override | adds `2021` | adds `2022` | adds `2023` | adds `2024` | no override | `[..., 2020, 2025, 2030]` | Bin boundaries for assigning existing plants to vintage groups. The backcasting year Y is inserted between 2020 and 2025 to avoid zero-lifetime errors for plants built in (2020, Y] |
+
+!!! note
+    For 2020 and 2025, no override is needed because those years are already bin boundaries in the default list. For intermediate years (2021–2024), the year Y is added to the list to avoid a division-by-zero in the annuity calculation for recently-commissioned plants.
+
+```yaml
+# Example: baseline-2024-3H (adds 2024 between 2020 and 2025)
+existing_capacities:
+  grouping_years_power:
+  - 1900
+  - 1950
+  - 1955
+  - 1960
+  - 1965
+  - 1970
+  - 1975
+  - 1980
+  - 1985
+  - 1990
+  - 1995
+  - 2000
+  - 2005
+  - 2010
+  - 2015
+  - 2020
+  - 2024
+  - 2025
+  - 2030
+```
+
+#### `costs`
+
+| Property | Type | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 | Default | Description |
+|---|---|---|---|---|---|---|---|---|---|
+| `year` | int | `2020` | `2021` | `2022` | `2023` | `2024` | `2025` | `2050` | Technology cost year; selects the correct `costs_{year}.csv` file |
+
+```yaml
+# Example: baseline-2024-3H
+costs:
+  year: 2024
+```
+
+#### `biomass`
+
+| Property | Type | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 | Default | Description |
+|---|---|---|---|---|---|---|---|---|---|
+| `share_unsustainable_use_retained` | — | no override | `{2021: 1.0}` | `{2022: 1.0}` | `{2023: 1.0}` | `{2024: 1.0}` | no override | `{2020: 1, 2050: 0}` | Fraction of unsustainable biomass use retained. The backcasting year Y must be added as a key so that `build_biomass_potentials` can look it up without interpolation |
+| `share_sustainable_potential_available` | — | no override | `{2021: 0}` | `{2022: 0}` | `{2023: 0}` | `{2024: 0}` | no override | `{2020: 0, 2050: 1}` | Fraction of sustainable biomass potential available. Same reason as above |
+
+!!! note
+    These overrides are required even though `sector.biomass: false`, because `build_biomass_potentials` is an unconditional dependency of `prepare_sector_network` and uses `dict.get(year)` with no interpolation. Without the explicit entry, a `None` lookup would cause a runtime error.
+
+```yaml
+# Example: baseline-2024-3H
+biomass:
+  share_unsustainable_use_retained:
+    2024: 1.0
+  share_sustainable_potential_available:
+    2024: 0
+```
+
+#### `energy`
+
+| Property | Type | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 | Default | Description |
+|---|---|---|---|---|---|---|---|---|---|
+| `energy_totals_year` | int | `2020` | `2021` | `2022` | `2023` | `2023` | no override | `2023` | Year for JRC IDEES energy totals. Capped at 2023 because only `jrc_idees/archive/2023-v1` is available. For 2020, the actual year must be used because `2020 < 2023` would trigger a `ValueError` |
+
+```yaml
+# Example: baseline-2024-3H (capped at 2023)
+energy:
+  energy_totals_year: 2023
+```
+
+#### `backcasting`
+
+| Property | Type | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 | Default | Description |
+|---|---|---|---|---|---|---|---|---|---|
+| `year_costs` | int | `2025` | `2025` | `2025` | `2025` | `2025` | no override | n/a | Milestone year whose cost file is copied to the backcasting year (e.g., `costs_2025.csv` → `costs_2024.csv`) |
+
+```yaml
+# Example: baseline-2024-3H
+backcasting:
+  year_costs: 2025
+```
+
+---
+
+### Project scenarios
+
+Project scenarios add a single renewable energy generator on top of the corresponding baseline network, representing a specific real-world investment (e.g., a solar PPA), and are used to compute the counterfactual emission impact.
+
+Three project types have been modeled, one per geography:
+
+| Project | Country | Carrier | Capacity | Description |
+|---|---|---|---|---|
+| `DE-solar-100MW` | Germany (`DE`) | `solar` | 100 MW | Representative utility-scale solar PPA in Germany, among the largest electricity market in the EU |
+| `RO-solar-100MW` | Romania (`RO`) | `solar` | 100 MW | Solar PPA in Romania, a market with fast-growing renewable capacity |
+| `GB30-onwind-100MW` | Great Britain — node `GB3 0` | `onwind` | 100 MW | Onshore wind project in the UK, representing a wind-dominated market |
+
+Project generators are defined in [`data/project_generators.csv`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/data/project_generators.csv) and injected into the network by the `add_project_generators` Snakemake rule.
+
+For each project type, six scenarios are available (one per year 2020–2025), named e.g. `project-2024-3H-DE-solar-100MW`. All year-specific settings (`scenario`, `atlite`, `snapshots`, `electricity`, `load`, `existing_capacities`, `costs`, `biomass`, `energy`) are **identical to the corresponding baseline scenario**, and are not repeated here for brevity.
+
+The only additional setting compared to the baseline is `backcasting.project`, which is overridden to activate the project generator injection:
+
+#### `backcasting.project`
+
+| Property | Type | DE solar | RO solar | GB30 onwind | Default (common config) | Description |
+|---|---|---|---|---|---|---|
+| `enable` | bool | `true` | `true` | `true` | n/a | Activate project generator injection |
+| `file` | str | `data/project_generators.csv` | same | same | n/a | CSV file with project generator definitions |
+| `carrier` | list[str] | `["solar"]` | `["solar"]` | `["onwind"]` | n/a | Technology carrier of the project generator |
+| `size_MW` | list[float] | `[100]` | `[100]` | `[100]` | n/a | Installed capacity in MW |
+| `country` | list[str] | `["DE"]` | `["RO"]` | `["GB30"]` | n/a | Country/bus code where the generator is injected |
+
+```yaml
+# Example: project-2024-3H-DE-solar-100MW
+# (year-specific settings identical to baseline-2024-3H, plus:)
+backcasting:
+  year_costs: 2025
+  project:
+    enable: true
+    file: data/project_generators.csv
+    carrier: ["solar"]
+    size_MW: [100]
+    country: ["DE"]
+```
+
 ---
 
 ## Test model configurations
