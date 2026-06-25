@@ -541,3 +541,9 @@ backcasting:
 ---
 
 ## Test model configurations
+
+Finally, a test configuration has been developed for a test toy model, which was very useful in the initial phase of the model development. The files involved are:
+- [`config/test/config.rmi.DE.yaml`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/test/config.rmi.DE.yaml).
+- [`config/test/scenarios.rmi.DE.yaml`](https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/config/test/scenarios.rmi.DE.yaml).
+
+The test model only includes Germany, modelled with 2 nodes. Also, the weather year is constant across all the scenarios and equal to default one, i.e., 2013.
