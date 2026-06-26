@@ -704,7 +704,7 @@
 <li><strong>Double-counting</strong>: both generators and links representing the same physical plants.</li>
 <li><strong>Free fuel</strong>: the phantom <code>bus0</code> bus would not have supply (no <code>Generator</code> or <code>Store</code>), so its energy balance would be unconstrained (i.e., biomass fuel was effectively free).</li>
 </ol>
-<p>Without <code>biomass</code> in <code>pypsa_eur.Generator</code> (PyPSA-Eur default setting): <code>remove_elec_base_techs()</code> would drop the generators in <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/prepare_sector_network.py"><code>scripts/prepare_sector_networ.py</code></a>, so only the links would remain. The double-counting would not occur, but the free-fuel problem would still be present (phantom bus with no supply). The implemented fix addresses both the problems.</p>
+<p>Without <code>biomass</code> in <code>pypsa_eur.Generator</code> (PyPSA-Eur default setting), <code>remove_elec_base_techs()</code> would drop the generators in <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/prepare_sector_network.py"><code>scripts/prepare_sector_networ.py</code></a>, so only the links would remain. The double-counting would not occur, but the free-fuel problem would still be present (phantom bus with no supply). The implemented fix addresses both the problems.</p>
 <p><strong>New code:</strong></p>
 <pre><code class="language-python"># scripts/add_existing_baseyear.py/add_power_capacities_installed_before_baseyear()
 # in the else branch of the generator loop, before bus0 computation and bus creation:
@@ -723,7 +723,7 @@ if generator == &quot;nuclear&quot;:
     continue
 </code></pre>
 <p><strong>Notes:</strong></p>
-<p>This is a well-know bug in <a href="https://github.com/PyPSA/pypsa-eur">original PyPSA-Eur</a>, which is currently being addresed in <a href="https://github.com/PyPSA/pypsa-eur/pull/1540">this PR</a>.</p>
+<p>This is a well-know bug in the <a href="https://github.com/PyPSA/pypsa-eur">original PyPSA-Eur</a>, which is currently being addresed in <a href="https://github.com/PyPSA/pypsa-eur/pull/1540">this PR</a>.</p>
 <hr />
 <h2 id="electricity-demand-processing-when-load-year-differs-from-snapshots">Electricity demand processing when load year differs from snapshots</h2>
 <p><strong>Script/function:</strong> <a href="https://github.com/open-energy-transition/pypsa-eur-ghgp/blob/dfde908a1485162deff1ecd07be223eafa479cd2/scripts/build_electricity_demand.py"><code>scripts/build_electricity_demand.py</code></a>.</p>
@@ -757,8 +757,8 @@ load.to_csv(snakemake.output[0])
 </code></pre>
 <p><strong>Notes:</strong></p>
 <ul>
-<li>Consider that this bug was faced when testing the model with different load and weather years. However, the final full model configuration provides for the same load and weather year.</li>
-<li>The fix is backward-compatible: when <code>load.fixed_year: false</code>, the <code>else</code> branch reproduces the original behavior exactly. However, the fix does not handle the case when load year differ from snapshots, the former is not a leap year, whereas the latter is a leap year. In this regard, the code line <code>fixed_year_index = snapshots.map(lambda t: t.replace(year=int(fixed_year)))</code> would raise this error <code>ValueError: day is out of range for month.</code> In this regard, a more comprehensive <a href="https://github.com/PyPSA/pypsa-eur/issues/2187">bug issue</a> has been raised in the <a href="https://github.com/PyPSA/pypsa-eur">original PyPSA-Eur</a> repository.</li>
+<li>Consider that this bug was faced when testing the model with different load and weather years. However, the final full model configuration provides for the same load and weather year, so that the bug would not be faced.</li>
+<li>The fix is backward-compatible: when <code>load.fixed_year: false</code>, the <code>else</code> branch reproduces the original behavior exactly. However, the fix does not handle the case when load year differ from snapshots, the former is not a leap year, whereas the latter is a leap year. In this regard, the code line <code>fixed_year_index = snapshots.map(lambda t: t.replace(year=int(fixed_year)))</code> would raise this error: <code>ValueError: day is out of range for month.</code> In this regard, a more comprehensive <a href="https://github.com/PyPSA/pypsa-eur/issues/2187">bug issue</a> has been raised in the <a href="https://github.com/PyPSA/pypsa-eur">original PyPSA-Eur</a> repository.</li>
 </ul>
 
 
